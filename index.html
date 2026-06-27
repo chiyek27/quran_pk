@@ -337,11 +337,11 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   <div class="content" id="content-latihan" style="display:none">
     <div id="lat-settings-body" class="settings-body open">
     <div class="settings-card">
-      <div class="settings-row">
+      <div class="settings-row" id="lat-surah-row">
 		<label>Surat</label>
 		<select id="lat-surah" onchange="updateLatRange()"></select>
       </div>
-      <div class="settings-row">
+      <div class="settings-row" id="lat-ayat-row">
         <label>Ayat</label>
         <div class="ayat-range">
           <select id="lat-from"></select>
@@ -350,11 +350,26 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         </div>
       </div>
       <div class="settings-row">
+        <label>Sumber soal</label>
+        <select id="lat-scope" onchange="toggleLatScope()">
+          <option value="ayat">Surat dipilih</option>
+          <option value="random-surah">Surat acak</option>
+          <option value="random-all">Semua surat (acak)</option>
+        </select>
+      </div>
+      <div class="settings-row">
         <label>Mode latihan</label>
         <select id="lat-mode">
           <option value="ar2tr">Arab → Terjemahan</option>
           <option value="tr2ar">Terjemahan → Arab</option>
         </select>
+      </div>
+      <div class="settings-row">
+        <label>Urutan soal</label>
+        <div class="toggle-group">
+          <div class="tgl on" id="tgl-lat-urut" onclick="toggleLatOrder('urut')">Urut</div>
+          <div class="tgl" id="tgl-lat-acak" onclick="toggleLatOrder('acak')">🔀 Acak</div>
+        </div>
       </div>
       <button class="apply-btn" onclick="startLatihan();closeSettings('lat')">Mulai Latihan</button>
     </div>
@@ -374,6 +389,13 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
           <option value="ayat">Per ayat</option>
           <option value="kata">Per kata</option>
         </select>
+      </div>
+      <div class="settings-row">
+        <label>Urutan kartu</label>
+        <div class="toggle-group">
+          <div class="tgl" id="tgl-fc-urut" onclick="toggleFCOrder('urut')">Urut</div>
+          <div class="tgl on" id="tgl-fc-acak" onclick="toggleFCOrder('acak')">🔀 Acak</div>
+        </div>
       </div>
       <button class="apply-btn" onclick="startFlashcard();closeSettings('fc')">Mulai Flashcard</button>
     </div>
@@ -427,6 +449,20 @@ function buildAyatOptions(fromId,toId,jml,fromVal,toVal){
 function updateAyatRange(){
   const s=DATA[document.getElementById('sel-surah').value];
   buildAyatOptions('ayat-from','ayat-to',s.jml,1,s.jml);
+}
+
+let latOrder='urut';
+function toggleLatOrder(v){
+  latOrder=v;
+  document.getElementById('tgl-lat-urut').className='tgl'+(v==='urut'?' on':'');
+  document.getElementById('tgl-lat-acak').className='tgl'+(v==='acak'?' on':'');
+}
+function toggleLatScope(){
+  const scope=document.getElementById('lat-scope').value;
+  const ayatRow=document.getElementById('lat-ayat-row');
+  const surahRow=document.getElementById('lat-surah-row');
+  if(ayatRow) ayatRow.style.display=(scope==='ayat')?'':'none';
+  if(surahRow) surahRow.style.display=(scope==='random-all')?'none':'';
 }
 
 function updateLatRange(){
@@ -494,28 +530,59 @@ function renderBaca(){
 // LATIHAN
 let latState={};
 function startLatihan(){
-  const sId=+document.getElementById('lat-surah').value;
-  const s=DATA[sId];
-  const fr=+document.getElementById('lat-from').value;
-  const to=+document.getElementById('lat-to').value;
+  const scope=document.getElementById('lat-scope').value;
   const mode=document.getElementById('lat-mode').value;
-  const ayats=s.ayat.filter(a=>a.n>=fr&&a.n<=to);
-  // Use kata-level if KATA_DATA available, else ayat-level
-  let kata=[];
-  if(typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
-    ayats.forEach(a=>{
-      const words=KATA_DATA[sId][a.n];
-      if(words && words.length){
-        words.forEach(w=>{
-          if(w.tr) kata.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});
+  let ayats=[];
+
+  if(scope==='random-all'){
+    // Ambil semua kata dari semua surat, lalu acak
+    for(let sId=1;sId<=114;sId++){
+      const s=DATA[sId];
+      if(!s) continue;
+      if(typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
+        s.ayat.forEach(a=>{
+          const words=KATA_DATA[sId][a.n];
+          if(words && words.length) words.forEach(w=>{if(w.tr) ayats.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});});
         });
+      } else {
+        s.ayat.forEach(a=>ayats.push({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
       }
-    });
+    }
+    ayats.sort(()=>Math.random()-.5);
+    ayats=ayats.slice(0,50); // batasi 50 soal agar tidak terlalu panjang
+  } else if(scope==='random-surah'){
+    // Pilih surat secara acak
+    const randSId=Math.ceil(Math.random()*114);
+    const s=DATA[randSId];
+    if(typeof KATA_DATA!=='undefined' && KATA_DATA[randSId]){
+      s.ayat.forEach(a=>{
+        const words=KATA_DATA[randSId][a.n];
+        if(words && words.length) words.forEach(w=>{if(w.tr) ayats.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});});
+      });
+    } else {
+      s.ayat.forEach(a=>ayats.push({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
+    }
+    ayats.sort(()=>Math.random()-.5);
+  } else {
+    // Surat dipilih
+    const sId=+document.getElementById('lat-surah').value;
+    const s=DATA[sId];
+    const fr=+document.getElementById('lat-from').value;
+    const to=+document.getElementById('lat-to').value;
+    const filtered=s.ayat.filter(a=>a.n>=fr&&a.n<=to);
+    if(typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
+      filtered.forEach(a=>{
+        const words=KATA_DATA[sId][a.n];
+        if(words && words.length) words.forEach(w=>{if(w.tr) ayats.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});});
+      });
+    } else {
+      ayats=filtered.map(a=>({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
+    }
+    if(latOrder==='acak') ayats.sort(()=>Math.random()-.5);
   }
-  if(!kata.length){
-    kata=ayats.map(a=>({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
-  }
-  latState={kata,mode,idx:0,score:0,total:kata.length,answered:false};
+
+  if(!ayats.length){ayats=[{ar:'—',tr:'Tidak ada data',ayat:1,surah:'?'}];}
+  latState={kata:ayats,mode,idx:0,score:0,total:ayats.length,answered:false};
   renderLatihan();
 }
 
@@ -589,6 +656,12 @@ function checkAnswer(i,chosen,correct){
 
 // FLASHCARD
 let fc={cards:[],idx:0,flipped:false,done:[]};
+let fcOrder='acak';
+function toggleFCOrder(v){
+  fcOrder=v;
+  document.getElementById('tgl-fc-urut').className='tgl'+(v==='urut'?' on':'');
+  document.getElementById('tgl-fc-acak').className='tgl'+(v==='acak'?' on':'');
+}
 let touchStartX=0,touchStartY=0;
 
 function fcUpdateRange(){
@@ -616,7 +689,7 @@ function startFlashcard(){
       s.ayat.forEach(a=>cards.push({ar:a.ar,tr:a.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name}));
     }
   });
-  cards.sort(()=>Math.random()-.5);
+  if(fcOrder==='acak') cards.sort(()=>Math.random()-.5);
   fc={cards,idx:0,flipped:false,done:[]};
   renderFC();
 }
