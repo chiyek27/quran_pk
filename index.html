@@ -314,12 +314,14 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         <label>Tampilan</label>
         <div class="toggle-group">
           <div class="tgl on" id="tgl-ayat" onclick="toggleMode('ayat')">Per ayat</div>
+          <div class="tgl" id="tgl-kata" onclick="toggleMode('kata')">Per kata</div>
         </div>
       </div>
       <div class="settings-row">
         <label>Terjemahan</label>
         <div class="toggle-group">
           <div class="tgl on" id="tgl-tr-ayat" onclick="toggleTr('ayat')">Per ayat</div>
+          <div class="tgl on" id="tgl-tr-kata" onclick="toggleTr('kata')">Per kata</div>
         </div>
       </div>
       <div class="settings-row">
@@ -370,6 +372,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         <label>Level kartu</label>
         <select id="fc-level">
           <option value="ayat">Per ayat</option>
+          <option value="kata">Per kata</option>
         </select>
       </div>
       <button class="apply-btn" onclick="startFlashcard();closeSettings('fc')">Mulai Flashcard</button>
@@ -380,17 +383,22 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 </div>
 
 <script src="quran_data_20260603.js"></script>
+<script src="kata_data.js"></script>
 <script>
 
-let showAyat=true, showKata=false, showTrAyat=true, showTrKata=false, showFn=false;
+let showAyat=true, showKata=false, showTrAyat=true, showTrKata=true, showFn=false;
 function toggleMode(type){
   if(type==='ayat') showAyat=!showAyat;
+  if(type==='kata') showKata=!showKata;
   document.getElementById('tgl-ayat').className='tgl'+(showAyat?' on':'');
+  document.getElementById('tgl-kata').className='tgl'+(showKata?' on':'');
   renderBaca();
 }
 function toggleTr(type){
   if(type==='ayat') showTrAyat=!showTrAyat;
+  if(type==='kata') showTrKata=!showTrKata;
   document.getElementById('tgl-tr-ayat').className='tgl'+(showTrAyat?' on':'');
+  document.getElementById('tgl-tr-kata').className='tgl'+(showTrKata?' on':'');
   renderBaca();
 }
 function toggleFn(){
@@ -457,12 +465,15 @@ function renderBaca(){
       if(showTrAyat){
         html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> ${a.tr}</div>`;
       }
-      if(showKata && a.kata && a.kata.length){
-        html+=`<div class="kata-grid">`;
-        a.kata.forEach(k=>{
-          html+=`<div class="kata-item"><div class="kata-ar">${k.ar}</div>${showTrKata?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
-        });
-        html+=`</div>`;
+      if(showKata){
+        const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
+        if(kataAyat && kataAyat.length){
+          html+=`<div class="kata-grid">`;
+          kataAyat.forEach(k=>{
+            html+=`<div class="kata-item"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
+          });
+          html+=`</div>`;
+        }
       }
       if(showFn && a.fn){
         const fnId=`${sId}-${a.n}`;
@@ -489,8 +500,21 @@ function startLatihan(){
   const to=+document.getElementById('lat-to').value;
   const mode=document.getElementById('lat-mode').value;
   const ayats=s.ayat.filter(a=>a.n>=fr&&a.n<=to);
-  // Use ayat-based latihan (kata data not available)
-  const kata=ayats.map(a=>({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
+  // Use kata-level if KATA_DATA available, else ayat-level
+  let kata=[];
+  if(typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
+    ayats.forEach(a=>{
+      const words=KATA_DATA[sId][a.n];
+      if(words && words.length){
+        words.forEach(w=>{
+          if(w.tr) kata.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});
+        });
+      }
+    });
+  }
+  if(!kata.length){
+    kata=ayats.map(a=>({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
+  }
   latState={kata,mode,idx:0,score:0,total:kata.length,answered:false};
   renderLatihan();
 }
@@ -579,8 +603,18 @@ function startFlashcard(){
   srcs.forEach(id=>{
     const s=DATA[id];
     if(!s) return;
-    // Always use ayat level (kata data not available in this dataset)
-    s.ayat.forEach(a=>cards.push({ar:a.ar,tr:a.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name}));
+    if(level==='kata' && typeof KATA_DATA!=='undefined' && KATA_DATA[id]){
+      s.ayat.forEach(a=>{
+        const words=KATA_DATA[id][a.n];
+        if(words && words.length){
+          words.forEach(w=>{
+            if(w.tr) cards.push({ar:w.ar,tr:w.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name});
+          });
+        }
+      });
+    } else {
+      s.ayat.forEach(a=>cards.push({ar:a.ar,tr:a.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name}));
+    }
   });
   cards.sort(()=>Math.random()-.5);
   fc={cards,idx:0,flipped:false,done:[]};
