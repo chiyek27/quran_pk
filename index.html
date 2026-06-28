@@ -539,18 +539,33 @@ function updateLatJumlah(){
   document.getElementById('lat-jumlah').value=count||'';
 }
 
+let _ttsVoices=[];
+function _loadVoices(){
+  _ttsVoices=window.speechSynthesis.getVoices();
+}
+if('speechSynthesis' in window){
+  _loadVoices();
+  window.speechSynthesis.onvoiceschanged=_loadVoices;
+}
+
+function _pickVoice(lang, priorityKw, femaleKw){
+  const list=_ttsVoices.filter(v=>v.lang.startsWith(lang));
+  if(priorityKw){
+    const hit=list.find(v=>priorityKw.some(k=>v.name.toLowerCase().includes(k)));
+    if(hit) return hit;
+  }
+  const male=list.find(v=>!femaleKw.some(k=>v.name.toLowerCase().includes(k)));
+  return male||list[0]||null;
+}
+
 function speakAr(text){
   if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utt=new SpeechSynthesisUtterance(text);
   utt.lang='ar-SA';
   utt.rate=0.8;
-  const voices=window.speechSynthesis.getVoices();
-  const arVoices=voices.filter(v=>v.lang.startsWith('ar'));
-  const femaleKw=['female','woman','samira','laila','maged female','zira','siobhan','lekha'];
-  const maleVoice=arVoices.find(v=>!femaleKw.some(k=>v.name.toLowerCase().includes(k)));
-  if(maleVoice) utt.voice=maleVoice;
-  else if(arVoices.length) utt.voice=arVoices[0];
+  const femaleKw=['female','woman','samira','laila','zira'];
+  utt.voice=_pickVoice('ar', null, femaleKw);
   window.speechSynthesis.speak(utt);
 }
 
@@ -560,12 +575,8 @@ function speakId(text){
   const utt=new SpeechSynthesisUtterance(text);
   utt.lang='id-ID';
   utt.rate=0.9;
-  const voices=window.speechSynthesis.getVoices();
-  const idVoices=voices.filter(v=>v.lang.startsWith('id'));
-  const ardiVoice=idVoices.find(v=>v.name.toLowerCase().includes('ardi'));
   const femaleKw=['female','woman','siti','wanita'];
-  const maleVoice=idVoices.find(v=>!femaleKw.some(k=>v.name.toLowerCase().includes(k)));
-  utt.voice=ardiVoice||maleVoice||idVoices[0]||null;
+  utt.voice=_pickVoice('id', ['ardi'], femaleKw);
   window.speechSynthesis.speak(utt);
 }
 
