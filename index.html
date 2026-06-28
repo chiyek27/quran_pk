@@ -722,8 +722,8 @@ function _startCalibration(utt, textLength, lang){
 // Each segment = array of spans up to (and including) a span whose word ends with punctuation.
 function _groupByPunctuation(wordSpans){
   // Returns [{spans, pauseExtra}] where pauseExtra = bonus ms to add AFTER last word of group
-  // Heavy pause : titik, tanda tanya, tanda seru, ellipsis → +200ms (kalimat selesai)
-  // Light pause : koma, titik dua, titik koma → +150ms (jeda napas, kalimat lanjut)
+  // Heavy pause : titik, tanda tanya, tanda seru, ellipsis → +500ms (kalimat selesai)
+  // Light pause : koma, titik dua, titik koma → +350ms (jeda napas, kalimat lanjut)
   // No punct    : no extra pause
   const heavyRe = /[.?!؟…]$/;
   const lightRe = /[,;:،؛]$/;
