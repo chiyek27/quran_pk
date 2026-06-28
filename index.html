@@ -388,10 +388,18 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
       </div>
       <div class="settings-row">
         <label>Level kartu</label>
-        <select id="fc-level">
+        <select id="fc-level" onchange="toggleFcLevel()">
           <option value="ayat">Per ayat</option>
           <option value="kata">Per kata</option>
         </select>
+      </div>
+      <div class="settings-row" id="fc-ayat-row" style="display:none">
+        <label>Ayat</label>
+        <div class="ayat-range">
+          <select id="fc-from"></select>
+          <span class="ayat-sep">s/d</span>
+          <select id="fc-to"></select>
+        </div>
       </div>
       <div class="settings-row">
         <label>Urutan kartu</label>
@@ -664,11 +672,32 @@ let touchStartX=0,touchStartY=0;
 
 function fcUpdateRange(){
   const v=document.getElementById('fc-surah').value;
+  if(v==='all'){
+    document.getElementById('fc-ayat-row').style.display='none';
+    return;
+  }
+  const s=DATA[+v];
+  if(s) buildAyatOptions('fc-from','fc-to',s.jml,1,s.jml);
+  // show/hide ayat row based on current level
+  toggleFcLevel();
+}
+
+function toggleFcLevel(){
+  const level=document.getElementById('fc-level').value;
+  const surahVal=document.getElementById('fc-surah').value;
+  const ayatRow=document.getElementById('fc-ayat-row');
+  ayatRow.style.display=(level==='kata' && surahVal!=='all')?'':'none';
+  if(level==='kata' && surahVal!=='all'){
+    const s=DATA[+surahVal];
+    if(s) buildAyatOptions('fc-from','fc-to',s.jml,1,s.jml);
+  }
 }
 
 function startFlashcard(){
   const sId=document.getElementById('fc-surah').value;
   const level=document.getElementById('fc-level').value;
+  const fr=level==='kata'&&sId!=='all'?+document.getElementById('fc-from').value:null;
+  const to=level==='kata'&&sId!=='all'?+document.getElementById('fc-to').value:null;
   let cards=[];
   const srcs=sId==='all'?Object.keys(DATA).map(Number):[+sId];
   srcs.forEach(id=>{
@@ -676,6 +705,7 @@ function startFlashcard(){
     if(!s) return;
     if(level==='kata' && typeof KATA_DATA!=='undefined' && KATA_DATA[id]){
       s.ayat.forEach(a=>{
+        if(fr!==null && (a.n<fr||a.n>to)) return;
         const words=KATA_DATA[id][a.n];
         if(words && words.length){
           words.forEach(w=>{
