@@ -723,7 +723,7 @@ function _startCalibration(utt, textLength, lang){
 function _groupByPunctuation(wordSpans){
   // Returns [{spans, pauseExtra}] where pauseExtra = bonus ms to add AFTER last word of group
   // Heavy pause : titik, tanda tanya, tanda seru, ellipsis → +200ms (kalimat selesai)
-  // Light pause : koma, titik dua, titik koma → +100ms (jeda napas, kalimat lanjut)
+  // Light pause : koma, titik dua, titik koma → +150ms (jeda napas, kalimat lanjut)
   // No punct    : no extra pause
   const heavyRe = /[.?!؟…]$/;
   const lightRe = /[,;:،؛]$/;
@@ -734,7 +734,7 @@ function _groupByPunctuation(wordSpans){
     cur.push(span);
     const w = (span.dataset.w || span.textContent).trim();
     if(anyRe.test(w)){
-      const pauseExtra = heavyRe.test(w) ? 200 : 100;
+      const pauseExtra = heavyRe.test(w) ? 200 : 150;
       groups.push({spans: cur, pauseExtra});
       cur = [];
     }
@@ -774,7 +774,7 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 1.5 : 2.5));
   const charsPerSec = baseCPS * rate;
   const minWordMs = 50;
-  const maxWordMs = 400;
+  const maxWordMs = 300;
   const minSegMs  = 500;
 
   const groups = _groupByPunctuation(wordSpans);
