@@ -645,7 +645,7 @@ function speakAr(text, blockEl){
 function speakId(text, blockEl){
   if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const clean=text.replace(/\[\d+\]/g,'').trim();
+  const clean=text.replace(/\[\d+\]/g,'').replace(/[()]/g,'').trim();
   const utt=new SpeechSynthesisUtterance(clean);
   utt.lang='id-ID';
   utt.rate=parseFloat(document.getElementById('tts-id-rate')?.value||0.9);
