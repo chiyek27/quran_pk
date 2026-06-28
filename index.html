@@ -717,24 +717,28 @@ function _wordHighlighter(wordSpans, utt, cleanText){
     }
   };
 
-  // Timer fallback — fires after short delay if no boundary event received
-  let wordIdx = 0;
-  const totalWords = wordSpans.length;
-  // Estimate avg word duration from rate; rough: ~250ms per word at rate 0.8-0.9
-  const avgMs = Math.round(60000 / (220 * (utt.rate || 0.9)));
+  // Timer fallback — proportional per-word timing based on char count
+  const rate = utt.rate || 0.9;
+  // Chars-per-second estimate: ~14 chars/sec at rate=1.0 for Indonesian/Arabic
+  const charsPerSec = 14 * rate;
+  // Min per word ~120ms, so very short words still get a moment
+  const minMs = 120;
+
+  const words = Array.from(wordSpans).map(s => s.dataset.w || s.textContent);
+  const totalChars = words.reduce((s, w) => s + w.length, 0) || 1;
 
   const startFallback = () => {
     if(_boundarySupported) return;
-    wordIdx = 0;
-    timerFallback = setInterval(() => {
+    let idx = 0;
+    const scheduleNext = () => {
+      if(idx >= wordSpans.length) return;
       wordSpans.forEach(s => s.classList.remove('tts-word-active'));
-      if(wordIdx < totalWords){
-        wordSpans[wordIdx].classList.add('tts-word-active');
-        wordIdx++;
-      } else {
-        clearInterval(timerFallback);
-      }
-    }, avgMs);
+      wordSpans[idx].classList.add('tts-word-active');
+      const ms = Math.max(minMs, Math.round((words[idx].length / charsPerSec) * 1000));
+      idx++;
+      timerFallback = setTimeout(scheduleNext, ms);
+    };
+    scheduleNext();
   };
 
   // Give boundary 300ms to fire; if not, start timer
@@ -742,7 +746,7 @@ function _wordHighlighter(wordSpans, utt, cleanText){
 
   return () => {
     clearTimeout(gateTimer);
-    if(timerFallback){ clearInterval(timerFallback); timerFallback = null; }
+    if(timerFallback){ clearTimeout(timerFallback); timerFallback = null; }
     wordSpans.forEach(s => s.classList.remove('tts-word-active'));
   };
 }
