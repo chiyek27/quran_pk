@@ -287,12 +287,23 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 .fn-text{
   display:none;margin-top:6px;font-size:12px;
   color:var(--c-muted);line-height:1.6;
-  white-space:pre-line;cursor:pointer;
+  white-space:pre-line;
 }
 .fn-text.tts-active{
   background:var(--c-green-light);
   border-radius:4px;
   padding:4px 6px;
+  color:var(--c-text);
+}
+.fn-part{
+  cursor:pointer;padding:3px 0;
+}
+.fn-part+.fn-part{margin-top:4px}
+.fn-part.tts-active{
+  background:var(--c-green-light);
+  border-radius:4px;
+  padding:3px 6px;
+  margin:0 -6px;
   color:var(--c-text);
 }
 .fn-text.open{display:block}
@@ -661,7 +672,12 @@ function renderBaca(){
             <span>📝 Catatan kaki</span>
             <span class="fn-toggle-icon">▼</span>
           </div>
-          <div class="fn-text" id="fn-text-${fnId}" data-fn="${a.fn.replace(/"/g,'&quot;')}" onclick="speakId(this.dataset.fn,this)">${a.fn}</div>
+          <div class="fn-text" id="fn-text-${fnId}">${
+            a.fn.split(/\n(?=\[\d+\])/).map((part,i)=>{
+              const safe=part.replace(/"/g,'&quot;');
+              return `<div class="fn-part" data-fn="${safe}" onclick="speakId(this.dataset.fn,this)">${part}</div>`;
+            }).join('')
+          }</div>
         </div>`;
       }
       html+=`</div>`;
