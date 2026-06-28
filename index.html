@@ -1475,6 +1475,11 @@ function switchTab(t){
     return;
   }
   activeTab=t;
+  const tabsEl=document.querySelector('.tabs');
+  if(tabsEl){
+    const tabsTop=tabsEl.getBoundingClientRect().top+window.scrollY;
+    window.scrollTo({top:tabsTop,behavior:'smooth'});
+  }
   ['baca','latihan','flashcard'].forEach(x=>{
     document.getElementById('content-'+x).style.display=x===t?'block':'none';
     document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
