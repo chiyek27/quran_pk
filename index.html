@@ -750,7 +750,11 @@ function _wordHighlighter(wordSpans, utt, cleanText){
 
   const groups = _groupByPunctuation(wordSpans);
 
-  // Pre-compute flat delay schedule (one entry per wordSpan)
+  // Pre-compute flat delay schedule (one entry per wordSpan).
+  // Selisih antara total segmen dan minSegMs dibagi rata ke semua kata:
+  //   surplus  (total > minSegMs) → tiap kata dikurangi rata
+  //   deficit  (total < minSegMs) → tiap kata ditambah rata
+  // Hasil akhir per kata difloor ke minWordMs agar tidak ada kata yang hilang terlalu cepat.
   const schedule = [];
   groups.forEach(group => {
     const bases = group.map(s => {
@@ -758,8 +762,9 @@ function _wordHighlighter(wordSpans, utt, cleanText){
       return Math.max(minWordMs, Math.round((w.length / charsPerSec) * 1000));
     });
     const segMs = bases.reduce((a, b) => a + b, 0);
-    const bonusMs = Math.round(Math.max(0, minSegMs - segMs) / group.length);
-    bases.forEach(b => schedule.push(b + bonusMs));
+    // selisih positif = surplus (terlalu lama), negatif = deficit (terlalu cepat)
+    const adjustPerWord = Math.round((minSegMs - segMs) / group.length);
+    bases.forEach(b => schedule.push(Math.max(minWordMs, b + adjustPerWord)));
   });
 
   const startFallback = () => {
