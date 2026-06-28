@@ -1470,33 +1470,62 @@ function fcTouch(e){
 }
 
 function switchTab(t){
+  const tabsEl=document.querySelector('.tabs');
+  const scrollToTabsThen=(cb)=>{
+    if(!tabsEl) { cb(); return; }
+    const tabsTop = tabsEl.getBoundingClientRect().top + window.scrollY;
+    const currentScroll = window.scrollY;
+    // Jika sudah dekat dengan tabs (dalam 10px), langsung jalankan cb
+    if(Math.abs(currentScroll - tabsTop) < 10){
+      cb(); return;
+    }
+    // Scroll ke posisi tabs, lalu jalankan cb setelah selesai
+    window.scrollTo({top: tabsTop, behavior:'smooth'});
+    let done = false;
+    const onScroll = ()=>{
+      if(done) return;
+      // Deteksi scroll selesai
+      clearTimeout(window._switchTabTimer);
+      window._switchTabTimer = setTimeout(()=>{
+        if(done) return;
+        done = true;
+        window.removeEventListener('scroll', onScroll);
+        cb();
+      }, 80);
+    };
+    window.addEventListener('scroll', onScroll, {passive:true});
+    // Fallback: jalankan cb setelah 600ms jika scroll belum memicu event
+    setTimeout(()=>{ if(!done){ done=true; window.removeEventListener('scroll',onScroll); cb(); } }, 600);
+  };
+
   if(activeTab===t){
-    toggleActiveSettings();
+    // Tab yang sama diklik: toggle settings, scroll ke tabs dulu jika jauh
+    scrollToTabsThen(()=>toggleActiveSettings());
     return;
   }
-  activeTab=t;
-  ['baca','latihan','flashcard'].forEach(x=>{
-    document.getElementById('content-'+x).style.display=x===t?'block':'none';
-    document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
-  });
-  const prefix=getPrefix(t);
-  const body=document.getElementById(prefix+'-settings-body');
-  if(body && !body.classList.contains('open')){
-    body.classList.add('open');
-  }
-  ['baca','latihan','flashcard'].forEach(x=>{
-    const chv=document.getElementById('chv-'+x);
-    if(!chv) return;
-    chv.style.display=x===t?'inline-block':'none';
-    if(x===t){
-      const isOpen=document.getElementById(getPrefix(x)+'-settings-body').classList.contains('open');
-      chv.classList.toggle('open',isOpen);
+
+  // Pindah tab: scroll ke tabs dulu, lalu switch konten & buka settings
+  scrollToTabsThen(()=>{
+    activeTab=t;
+    ['baca','latihan','flashcard'].forEach(x=>{
+      document.getElementById('content-'+x).style.display=x===t?'block':'none';
+      document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
+    });
+    const prefix=getPrefix(t);
+    const body=document.getElementById(prefix+'-settings-body');
+    if(body && !body.classList.contains('open')){
+      body.classList.add('open');
     }
+    ['baca','latihan','flashcard'].forEach(x=>{
+      const chv=document.getElementById('chv-'+x);
+      if(!chv) return;
+      chv.style.display=x===t?'inline-block':'none';
+      if(x===t){
+        const isOpen=document.getElementById(getPrefix(x)+'-settings-body').classList.contains('open');
+        chv.classList.toggle('open',isOpen);
+      }
+    });
   });
-  const tabsEl=document.querySelector('.tabs');
-  if(tabsEl){
-    window.scrollTo({top:tabsEl.offsetTop,behavior:'smooth'});
-  }
 }
 
 let activeTab='baca';
