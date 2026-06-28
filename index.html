@@ -351,6 +351,26 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   padding:2px 4px;
   color:var(--c-text);
 }
+.tafsir-ar-word{
+  display:inline;border-radius:3px;
+  transition:background .1s;
+}
+.tafsir-ar-word.tts-word-active{
+  background:var(--c-gold-light);
+  outline:1px solid var(--c-gold-border);
+  border-radius:3px;
+  color:var(--c-text);
+}
+.tts-id-word{
+  display:inline;border-radius:3px;
+  transition:background .1s;
+}
+.tts-id-word.tts-word-active{
+  background:var(--c-gold-light);
+  outline:1px solid var(--c-gold-border);
+  border-radius:3px;
+  color:var(--c-text);
+}
   font-size:10px;padding:2px 7px;border-radius:10px;
   font-weight:600;flex-shrink:0;display:inline-block;
 }
@@ -673,8 +693,36 @@ function speakAr(text, blockEl){
   utt.pitch=0.7;
   const femaleArKw=['female','woman','samira','laila','zira'];
   utt.voice=_pickVoice('ar', null, femaleArKw);
-  utt.onend=()=>_setActive(null,'tts-active');
-  if(blockEl) _setActive(blockEl,'tts-active');
+
+  // word-level highlight for tafsir AR spans
+  const wordSpans = blockEl && blockEl.classList.contains('tafsir-ar-span')
+    ? blockEl.querySelectorAll('.tafsir-ar-word') : null;
+
+  if(wordSpans && wordSpans.length){
+    utt.onboundary = e => {
+      if(e.name !== 'word') return;
+      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+      // find which word span matches charIndex
+      let offset = 0;
+      for(let i = 0; i < wordSpans.length; i++){
+        const wlen = wordSpans[i].dataset.w.length + 1; // +1 for space
+        if(e.charIndex >= offset && e.charIndex < offset + wlen){
+          wordSpans[i].classList.add('tts-word-active');
+          break;
+        }
+        offset += wlen;
+      }
+    };
+    utt.onend = () => {
+      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+      _setActive(null,'tts-active');
+    };
+    _setActive(blockEl,'tts-active');
+  } else {
+    utt.onend=()=>_setActive(null,'tts-active');
+    if(blockEl) _setActive(blockEl,'tts-active');
+  }
+
   window.speechSynthesis.speak(utt);
 }
 
@@ -688,8 +736,34 @@ function speakId(text, blockEl){
   utt.pitch=0.7;
   const femaleIdKw=['female','woman','siti','wanita'];
   utt.voice=_pickVoice('id', ['ardi'], femaleIdKw);
-  utt.onend=()=>_setActive(null,'tts-active');
-  if(blockEl) _setActive(blockEl,'tts-active');
+
+  const wordSpans = blockEl && blockEl.querySelectorAll('.tts-id-word');
+  if(wordSpans && wordSpans.length){
+    utt.onboundary = e => {
+      if(e.name !== 'word') return;
+      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+      let offset = 0;
+      for(let i = 0; i < wordSpans.length; i++){
+        const wlen = wordSpans[i].dataset.w.length + 1;
+        if(e.charIndex >= offset && e.charIndex < offset + wlen){
+          wordSpans[i].classList.add('tts-word-active');
+          break;
+        }
+        offset += wlen;
+      }
+    };
+    utt.onend = () => {
+      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+      _setActive(null,'tts-active');
+    };
+    _setActive(blockEl,'tts-active');
+  } else {
+    utt.onend=()=>_setActive(null,'tts-active');
+    if(blockEl) _setActive(blockEl,'tts-active');
+  }
+
+  window.speechSynthesis.speak(utt);
+}
   window.speechSynthesis.speak(utt);
 }
 
@@ -752,8 +826,14 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
     if (!entry || !entry.text) return '';
     const safe = entry.text.replace(/"/g, '&quot;');
     if (lang === 'ar') {
+      // Split text into words, wrap each in a span for word-level TTS highlight
+      const plainText = entry.text;
+      const words = plainText.split(/\s+/).filter(Boolean);
+      const wordSpansHtml = words.map(w =>
+        `<span class="tafsir-ar-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
+      ).join(' ');
       bodyHtml = `<div class="tafsir-text ar" id="tafsir-text-ar-${id}"
-        ><span class="tafsir-ar-span" data-ar="${safe}" onclick="speakAr(this.dataset.ar,this)">${entry.text}</span></div>`;
+        ><span class="tafsir-ar-span" data-ar="${plainText.replace(/"/g,'&quot;')}" onclick="speakAr(this.dataset.ar,this)">${wordSpansHtml}</span></div>`;
     } else {
       bodyHtml = `<div class="tafsir-text id" id="tafsir-text-id-${id}"
         onclick="speakId(this.innerText,this)"
@@ -797,7 +877,10 @@ function renderBaca(){
 
       }
       if(showTrAyat){
-        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> <span class="ayat-tr-text" data-tr="${a.tr.replace(/"/g,'&quot;')}" onclick="speakId(this.dataset.tr,this)">${a.tr}</span></div>`;
+        const trWords = a.tr.split(/\s+/).filter(Boolean).map(w=>
+          `<span class="tts-id-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
+        ).join(' ');
+        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> <span class="ayat-tr-text" data-tr="${a.tr.replace(/"/g,'&quot;')}" onclick="speakId(this.dataset.tr,this)">${trWords}</span></div>`;
       }
       if(showKata){
         const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
