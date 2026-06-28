@@ -743,9 +743,15 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
     if (typeof entry === 'string') entry = cache[entry];
     if (!entry || !entry.text) return '';
     const safe = entry.text.replace(/"/g, '&quot;');
-    bodyHtml = `<div class="tafsir-text ${langClass}" id="tafsir-text-${langClass}-${id}"
-      onclick="speakId(this.innerText,this)"
-      >${entry.text}</div>`;
+    if (lang === 'ar') {
+      bodyHtml = `<div class="tafsir-text ar" id="tafsir-text-ar-${id}"
+        data-ar="${safe}" onclick="speakAr(this.dataset.ar,this)"
+        >${entry.text}</div>`;
+    } else {
+      bodyHtml = `<div class="tafsir-text id" id="tafsir-text-id-${id}"
+        onclick="speakId(this.innerText,this)"
+        >${entry.text}</div>`;
+    }
   }
 
   return `<div class="tafsir-block">
