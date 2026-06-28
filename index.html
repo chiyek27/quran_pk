@@ -697,6 +697,33 @@ function _hasBoundary(){
 }
 let _boundarySupported = false;
 
+// Auto-calibration: ukur charsPerSec aktual dari TTS pertama yang selesai.
+// Disimpan di localStorage agar tidak perlu kalibrasi ulang setiap buka app.
+let _calibratedCPS = null;
+(function(){
+  try {
+    const v = parseFloat(localStorage.getItem('tts_cps'));
+    if(v > 0) _calibratedCPS = v;
+  } catch(e){}
+})();
+
+function _startCalibration(utt, textLength){
+  // Hanya kalibrasi jika belum ada nilai, dan onboundary tidak didukung
+  if(_calibratedCPS || _boundarySupported) return;
+  const t0 = Date.now();
+  const origOnend = utt.onend;
+  utt.onend = function(e){
+    if(!_boundarySupported){
+      const elapsed = (Date.now() - t0) / 1000; // detik
+      if(elapsed > 0.3 && textLength > 5){
+        _calibratedCPS = textLength / elapsed;
+        try { localStorage.setItem('tts_cps', _calibratedCPS); } catch(ex){}
+      }
+    }
+    if(origOnend) origOnend.call(this, e);
+  };
+}
+
 // Group wordSpans into punctuation-delimited segments.
 // Each segment = array of spans up to (and including) a span whose word ends with punctuation.
 function _groupByPunctuation(wordSpans){
@@ -744,11 +771,11 @@ function _wordHighlighter(wordSpans, utt, cleanText){
   //            bonusMs = pauseMs / groupLen         <- split evenly to each word
   // Final per word delay = baseMs + bonusMs
   const rate = utt.rate || 0.9;
-  // Android TTS lebih lambat dari estimasi — turunkan charsPerSec agar highlight
-  // tidak mendahului suara. ~7 char/sec lebih realistis untuk id-ID/ar-SA di Android.
-  const charsPerSec = 7 * rate;
+  // Gunakan nilai kalibrasi jika sudah tersedia, fallback ke estimasi konservatif.
+  // _calibratedCPS diukur dari durasi TTS aktual pada device ini.
+  const charsPerSec = (_calibratedCPS || 5) * rate;
   const minWordMs = 180;  // floor per word — kata pendek tetap terlihat
-  const minSegMs  = 800;  // minimum total ms per segmen (jeda tanda baca yang terasa)
+  const minSegMs  = 900;  // minimum total ms per segmen (jeda tanda baca yang terasa)
 
   const groups = _groupByPunctuation(wordSpans);
 
@@ -814,6 +841,7 @@ function speakAr(text, blockEl){
     if(blockEl) _setActive(blockEl,'tts-active');
   }
 
+  _startCalibration(utt, text.length);
   window.speechSynthesis.speak(utt);
 }
 
@@ -838,6 +866,7 @@ function speakId(text, blockEl){
     if(blockEl) _setActive(blockEl,'tts-active');
   }
 
+  _startCalibration(utt, clean.length);
   window.speechSynthesis.speak(utt);
 }
 
