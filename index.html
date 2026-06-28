@@ -348,7 +348,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         <label>Level latihan</label>
         <select id="lat-level" onchange="toggleLatLevel()">
           <option value="ayat">Per ayat</option>
-          <option value="kata">Per kata</option>
+          <option value="kata" selected>Per kata</option>
         </select>
       </div>
       <div class="settings-row" id="lat-surah-row">
@@ -390,17 +390,24 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
     <div id="fc-settings-body" class="settings-body open">
     <div class="settings-card">
       <div class="settings-row">
+        <label>Sumber kartu</label>
+        <select id="fc-scope" onchange="toggleFcScope()">
+          <option value="surah">Surat dipilih</option>
+          <option value="all">Semua surat</option>
+        </select>
+      </div>
+      <div class="settings-row" id="fc-surah-row">
         <label>Surat</label>
-		<select id="fc-surah" onchange="fcUpdateRange()"></select>
+        <select id="fc-surah" onchange="fcUpdateRange()"></select>
       </div>
       <div class="settings-row">
         <label>Level kartu</label>
         <select id="fc-level" onchange="toggleFcLevel()">
           <option value="ayat">Per ayat</option>
-          <option value="kata">Per kata</option>
+          <option value="kata" selected>Per kata</option>
         </select>
       </div>
-      <div class="settings-row" id="fc-ayat-row" style="display:none">
+      <div class="settings-row" id="fc-ayat-row">
         <label>Ayat</label>
         <div class="ayat-range">
           <select id="fc-from" onchange="updateFcJumlah()"></select>
@@ -415,8 +422,8 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
       <div class="settings-row">
         <label>Urutan kartu</label>
         <div class="toggle-group">
-          <div class="tgl" id="tgl-fc-urut" onclick="toggleFCOrder('urut')">Urut</div>
-          <div class="tgl on" id="tgl-fc-acak" onclick="toggleFCOrder('acak')">🔀 Acak</div>
+          <div class="tgl on" id="tgl-fc-urut" onclick="toggleFCOrder('urut')">Urut</div>
+          <div class="tgl" id="tgl-fc-acak" onclick="toggleFCOrder('acak')">🔀 Acak</div>
         </div>
       </div>
       <button class="apply-btn" onclick="startFlashcard();closeSettings('fc')">Mulai Flashcard</button>
@@ -706,7 +713,7 @@ function checkAnswer(i,chosen,correct){
 
 // FLASHCARD
 let fc={cards:[],idx:0,flipped:false,done:[]};
-let fcOrder='acak';
+let fcOrder='urut';
 function toggleFCOrder(v){
   fcOrder=v;
   document.getElementById('tgl-fc-urut').className='tgl'+(v==='urut'?' on':'');
@@ -714,13 +721,16 @@ function toggleFCOrder(v){
 }
 let touchStartX=0,touchStartY=0;
 
+function toggleFcScope(){
+  const scope=document.getElementById('fc-scope').value;
+  const isAll=(scope==='all');
+  document.getElementById('fc-surah-row').style.display=isAll?'none':'';
+  document.getElementById('fc-ayat-row').style.display=(isAll||document.getElementById('fc-level').value!=='kata')?'none':'';
+  updateFcJumlah();
+}
+
 function fcUpdateRange(){
   const v=document.getElementById('fc-surah').value;
-  if(v==='all'){
-    document.getElementById('fc-ayat-row').style.display='none';
-    updateFcJumlah();
-    return;
-  }
   const s=DATA[+v];
   if(s) buildAyatOptions('fc-from','fc-to',s.jml,1,s.jml);
   toggleFcLevel();
@@ -728,23 +738,25 @@ function fcUpdateRange(){
 
 function toggleFcLevel(){
   const level=document.getElementById('fc-level').value;
-  const surahVal=document.getElementById('fc-surah').value;
+  const scope=document.getElementById('fc-scope').value;
   const ayatRow=document.getElementById('fc-ayat-row');
-  ayatRow.style.display=(level==='kata' && surahVal!=='all')?'':'none';
-  if(level==='kata' && surahVal!=='all'){
-    const s=DATA[+surahVal];
+  ayatRow.style.display=(level==='kata' && scope!=='all')?'':'none';
+  if(level==='kata' && scope!=='all'){
+    const s=DATA[+document.getElementById('fc-surah').value];
     if(s) buildAyatOptions('fc-from','fc-to',s.jml,1,s.jml);
   }
   updateFcJumlah();
 }
 
 function updateFcJumlah(){
+  const scope=document.getElementById('fc-scope').value;
   const sId=document.getElementById('fc-surah').value;
   const level=document.getElementById('fc-level').value;
-  const fr=level==='kata'&&sId!=='all'?+document.getElementById('fc-from').value||1:null;
-  const to=level==='kata'&&sId!=='all'?+document.getElementById('fc-to').value||null:null;
+  const isAll=(scope==='all');
+  const fr=level==='kata'&&!isAll?+document.getElementById('fc-from').value||1:null;
+  const to=level==='kata'&&!isAll?+document.getElementById('fc-to').value||null:null;
   let count=0;
-  const srcs=sId==='all'?Object.keys(DATA).map(Number):[+sId];
+  const srcs=isAll?Object.keys(DATA).map(Number):[+sId];
   srcs.forEach(id=>{
     const s=DATA[id];
     if(!s) return;
@@ -762,12 +774,14 @@ function updateFcJumlah(){
 }
 
 function startFlashcard(){
+  const scope=document.getElementById('fc-scope').value;
   const sId=document.getElementById('fc-surah').value;
   const level=document.getElementById('fc-level').value;
-  const fr=level==='kata'&&sId!=='all'?+document.getElementById('fc-from').value:null;
-  const to=level==='kata'&&sId!=='all'?+document.getElementById('fc-to').value:null;
+  const isAll=(scope==='all');
+  const fr=level==='kata'&&!isAll?+document.getElementById('fc-from').value:null;
+  const to=level==='kata'&&!isAll?+document.getElementById('fc-to').value:null;
   let cards=[];
-  const srcs=sId==='all'?Object.keys(DATA).map(Number):[+sId];
+  const srcs=isAll?Object.keys(DATA).map(Number):[+sId];
   srcs.forEach(id=>{
     const s=DATA[id];
     if(!s) return;
@@ -942,8 +956,8 @@ function populateSurahSelect(selId, includeAll) {
 
 populateSurahSelect('sel-surah', false);
 populateSurahSelect('lat-surah', false);
-populateSurahSelect('fc-surah', true);
-updateFcJumlah();
+populateSurahSelect('fc-surah', false);
+toggleFcLevel();
 
 updateAyatRange();
 updateLatRange();
