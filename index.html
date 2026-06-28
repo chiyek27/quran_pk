@@ -771,11 +771,11 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   let gateTimer = null;
 
   const rate = utt.rate || 0.75;
-  const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 3.0 : 2.5));
+  const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 5.0 : 2.5));
   const charsPerSec = baseCPS * rate;
-  const minWordMs = 100;
-  const maxWordMs = 700;
-  const minSegMs  = 700;
+  const minWordMs = lang === 'ar' ? 50 : 100;
+  const maxWordMs = lang === 'ar' ? 400 : 700;
+  const minSegMs  = lang === 'ar' ? 300 : 700;
 
   const groups = _groupByPunctuation(wordSpans);
   const schedule = [];
