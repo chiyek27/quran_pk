@@ -337,9 +337,16 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   <div class="content" id="content-latihan" style="display:none">
     <div id="lat-settings-body" class="settings-body open">
     <div class="settings-card">
+      <div class="settings-row">
+        <label>Sumber soal</label>
+        <select id="lat-scope" onchange="toggleLatScope()">
+          <option value="ayat">Surat dipilih</option>
+          <option value="random-all">Semua surat</option>
+        </select>
+      </div>
       <div class="settings-row" id="lat-surah-row">
-		<label>Surat</label>
-		<select id="lat-surah" onchange="updateLatRange()"></select>
+        <label>Surat</label>
+        <select id="lat-surah" onchange="updateLatRange()"></select>
       </div>
       <div class="settings-row" id="lat-ayat-row">
         <label>Ayat</label>
@@ -350,12 +357,8 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         </div>
       </div>
       <div class="settings-row">
-        <label>Sumber soal</label>
-        <select id="lat-scope" onchange="toggleLatScope()">
-          <option value="ayat">Surat dipilih</option>
-          <option value="random-surah">Surat acak</option>
-          <option value="random-all">Semua surat (acak)</option>
-        </select>
+        <label>Jumlah soal</label>
+        <input type="number" id="lat-jumlah" value="20" min="1" max="200" style="max-width:80px;text-align:center">
       </div>
       <div class="settings-row">
         <label>Mode latihan</label>
@@ -364,7 +367,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
           <option value="tr2ar">Terjemahan → Arab</option>
         </select>
       </div>
-      <div class="settings-row">
+      <div class="settings-row" id="lat-order-row">
         <label>Urutan soal</label>
         <div class="toggle-group">
           <div class="tgl on" id="tgl-lat-urut" onclick="toggleLatOrder('urut')">Urut</div>
@@ -461,8 +464,11 @@ function toggleLatScope(){
   const scope=document.getElementById('lat-scope').value;
   const ayatRow=document.getElementById('lat-ayat-row');
   const surahRow=document.getElementById('lat-surah-row');
-  if(ayatRow) ayatRow.style.display=(scope==='ayat')?'':'none';
-  if(surahRow) surahRow.style.display=(scope==='random-all')?'none':'';
+  const orderRow=document.getElementById('lat-order-row');
+  const isAll=(scope==='random-all');
+  if(ayatRow) ayatRow.style.display=isAll?'none':'';
+  if(surahRow) surahRow.style.display=isAll?'none':'';
+  if(orderRow) orderRow.style.display=isAll?'none':'';
 }
 
 function updateLatRange(){
@@ -532,10 +538,11 @@ let latState={};
 function startLatihan(){
   const scope=document.getElementById('lat-scope').value;
   const mode=document.getElementById('lat-mode').value;
+  const jumlah=Math.max(1,parseInt(document.getElementById('lat-jumlah').value)||20);
   let ayats=[];
 
   if(scope==='random-all'){
-    // Ambil semua kata dari semua surat, lalu acak
+    // Ambil semua kata dari semua surat, lalu acak, batasi sesuai jumlah soal
     for(let sId=1;sId<=114;sId++){
       const s=DATA[sId];
       if(!s) continue;
@@ -549,20 +556,7 @@ function startLatihan(){
       }
     }
     ayats.sort(()=>Math.random()-.5);
-    ayats=ayats.slice(0,50); // batasi 50 soal agar tidak terlalu panjang
-  } else if(scope==='random-surah'){
-    // Pilih surat secara acak
-    const randSId=Math.ceil(Math.random()*114);
-    const s=DATA[randSId];
-    if(typeof KATA_DATA!=='undefined' && KATA_DATA[randSId]){
-      s.ayat.forEach(a=>{
-        const words=KATA_DATA[randSId][a.n];
-        if(words && words.length) words.forEach(w=>{if(w.tr) ayats.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});});
-      });
-    } else {
-      s.ayat.forEach(a=>ayats.push({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
-    }
-    ayats.sort(()=>Math.random()-.5);
+    ayats=ayats.slice(0,jumlah);
   } else {
     // Surat dipilih
     const sId=+document.getElementById('lat-surah').value;
@@ -579,6 +573,7 @@ function startLatihan(){
       ayats=filtered.map(a=>({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
     }
     if(latOrder==='acak') ayats.sort(()=>Math.random()-.5);
+    ayats=ayats.slice(0,jumlah);
   }
 
   if(!ayats.length){ayats=[{ar:'—',tr:'Tidak ada data',ayat:1,surah:'?'}];}
