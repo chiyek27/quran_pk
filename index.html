@@ -344,6 +344,13 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
           <option value="random-all">Semua surat</option>
         </select>
       </div>
+      <div class="settings-row">
+        <label>Level latihan</label>
+        <select id="lat-level" onchange="toggleLatLevel()">
+          <option value="ayat">Per ayat</option>
+          <option value="kata">Per kata</option>
+        </select>
+      </div>
       <div class="settings-row" id="lat-surah-row">
         <label>Surat</label>
         <select id="lat-surah" onchange="updateLatRange()"></select>
@@ -470,13 +477,14 @@ function toggleLatOrder(v){
 }
 function toggleLatScope(){
   const scope=document.getElementById('lat-scope').value;
-  const ayatRow=document.getElementById('lat-ayat-row');
-  const surahRow=document.getElementById('lat-surah-row');
-  const orderRow=document.getElementById('lat-order-row');
   const isAll=(scope==='random-all');
-  if(ayatRow) ayatRow.style.display=isAll?'none':'';
-  if(surahRow) surahRow.style.display=isAll?'none':'';
-  if(orderRow) orderRow.style.display=isAll?'none':'';
+  document.getElementById('lat-surah-row').style.display=isAll?'none':'';
+  document.getElementById('lat-ayat-row').style.display=isAll?'none':'';
+  document.getElementById('lat-order-row').style.display=isAll?'none':'';
+}
+
+function toggleLatLevel(){
+  // no extra rows to show/hide for now, logic handled in startLatihan
 }
 
 function updateLatRange(){
@@ -546,40 +554,37 @@ let latState={};
 function startLatihan(){
   const scope=document.getElementById('lat-scope').value;
   const mode=document.getElementById('lat-mode').value;
+  const level=document.getElementById('lat-level').value;
   const jumlah=Math.max(1,parseInt(document.getElementById('lat-jumlah').value)||20);
   let ayats=[];
 
+  function pushAyat(sId, ayatList){
+    const s=DATA[sId];
+    if(!s) return;
+    if(level==='kata' && typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
+      ayatList.forEach(a=>{
+        const words=KATA_DATA[sId][a.n];
+        if(words && words.length) words.forEach(w=>{if(w.tr) ayats.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});});
+      });
+    } else {
+      ayatList.forEach(a=>ayats.push({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
+    }
+  }
+
   if(scope==='random-all'){
-    // Ambil semua kata dari semua surat, lalu acak, batasi sesuai jumlah soal
     for(let sId=1;sId<=114;sId++){
       const s=DATA[sId];
-      if(!s) continue;
-      if(typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
-        s.ayat.forEach(a=>{
-          const words=KATA_DATA[sId][a.n];
-          if(words && words.length) words.forEach(w=>{if(w.tr) ayats.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});});
-        });
-      } else {
-        s.ayat.forEach(a=>ayats.push({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
-      }
+      if(s) pushAyat(sId, s.ayat);
     }
     ayats.sort(()=>Math.random()-.5);
     ayats=ayats.slice(0,jumlah);
   } else {
-    // Surat dipilih
     const sId=+document.getElementById('lat-surah').value;
     const s=DATA[sId];
     const fr=+document.getElementById('lat-from').value;
     const to=+document.getElementById('lat-to').value;
     const filtered=s.ayat.filter(a=>a.n>=fr&&a.n<=to);
-    if(typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
-      filtered.forEach(a=>{
-        const words=KATA_DATA[sId][a.n];
-        if(words && words.length) words.forEach(w=>{if(w.tr) ayats.push({ar:w.ar,tr:w.tr,ayat:a.n,surah:s.name});});
-      });
-    } else {
-      ayats=filtered.map(a=>({ar:a.ar,tr:a.tr,ayat:a.n,surah:s.name}));
-    }
+    pushAyat(sId, filtered);
     if(latOrder==='acak') ayats.sort(()=>Math.random()-.5);
     ayats=ayats.slice(0,jumlah);
   }
