@@ -773,8 +773,8 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   const rate = utt.rate || 0.9;
   const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 1.5 : 2.5));
   const charsPerSec = baseCPS * rate;
-  const minWordMs = 220;
-  const minSegMs  = 1000;
+  const minWordMs = 180;
+  const minSegMs  = 800;
 
   const groups = _groupByPunctuation(wordSpans);
   const schedule = [];
@@ -805,7 +805,7 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   // Mulai tick saat onstart fired (suara sudah keluar) + offset 30ms
   utt.onstart = () => {
     if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
-    gateTimer = setTimeout(startFallback, 30);
+    gateTimer = setTimeout(startFallback, 0);
   };
   // Safety fallback jika onstart tidak fired
   gateTimer = setTimeout(startFallback, 600);
