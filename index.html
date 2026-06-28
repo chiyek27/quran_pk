@@ -552,7 +552,7 @@ function renderBaca(){
     <div class="surah-name-ar" style="font-family:"Conv_original-hafs"">${s.name}</div>
     <div class="surah-name-id">${sId}. ${s.name} — ${s.id} · ${s.jml} Ayat</div>
   </div>`;
-  if(fr===1&&sId!==9) html+=`<div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
+  if(fr===1&&sId!==1&&sId!==9) html+=`<div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
   const adaKonten=showAyat||showKata||showTrAyat||showTrKata;
   if(!adaKonten){
     html+=`<p style="color:var(--c-muted);font-size:13px;text-align:center;padding:20px 0">Pilih tampilan di pengaturan.</p>`;
