@@ -539,6 +539,15 @@ function updateLatJumlah(){
   document.getElementById('lat-jumlah').value=count||'';
 }
 
+function speakAr(text){
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utt=new SpeechSynthesisUtterance(text);
+  utt.lang='ar-SA';
+  utt.rate=0.8;
+  window.speechSynthesis.speak(utt);
+}
+
 function toArabicNum(n){
   return String(n).split('').map(d=>'٠١٢٣٤٥٦٧٨٩'[+d]).join('');
 }
@@ -575,7 +584,7 @@ function renderBaca(){
         if(kataAyat && kataAyat.length){
           html+=`<div class="kata-grid">`;
           kataAyat.forEach(k=>{
-            html+=`<div class="kata-item"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
+            html+=`<div class="kata-item" onclick="speakAr('${k.ar}')"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
           html+=`<div class="kata-item kata-item-num"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
           html+=`</div>`;
