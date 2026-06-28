@@ -822,8 +822,8 @@ function speakAr(text, blockEl){
   window.speechSynthesis.cancel();
   const utt=new SpeechSynthesisUtterance(text);
   utt.lang='ar-SA';
-  utt.rate=0.8;
-  utt.pitch=0.7;
+  utt.rate=1;
+  utt.pitch=1;
   const femaleArKw=['female','woman','samira','laila','zira'];
   utt.voice=_pickVoice('ar', null, femaleArKw);
 
@@ -866,8 +866,8 @@ function speakId(text, blockEl){
 
   const utt=new SpeechSynthesisUtterance(clean);
   utt.lang='id-ID';
-  utt.rate=0.9;
-  utt.pitch=0.7;
+  utt.rate=1;
+  utt.pitch=1;
   const femaleIdKw=['female','woman','siti','wanita'];
   utt.voice=_pickVoice('id', ['ardi'], femaleIdKw);
 
