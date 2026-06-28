@@ -542,6 +542,9 @@ function updateLatJumlah(){
 let _ttsVoices=[];
 function _loadVoices(){
   _ttsVoices=window.speechSynthesis.getVoices();
+  if(_ttsVoices.length){
+    console.log('[TTS voices]', _ttsVoices.map(v=>v.name+'|'+v.lang).join(', '));
+  }
 }
 if('speechSynthesis' in window){
   _loadVoices();
@@ -564,6 +567,7 @@ function speakAr(text){
   const utt=new SpeechSynthesisUtterance(text);
   utt.lang='ar-SA';
   utt.rate=0.8;
+  utt.pitch=0.7;
   const femaleKw=['female','woman','samira','laila','zira'];
   utt.voice=_pickVoice('ar', null, femaleKw);
   window.speechSynthesis.speak(utt);
@@ -575,6 +579,7 @@ function speakId(text){
   const utt=new SpeechSynthesisUtterance(text);
   utt.lang='id-ID';
   utt.rate=0.9;
+  utt.pitch=0.7;
   const femaleKw=['female','woman','siti','wanita'];
   utt.voice=_pickVoice('id', ['ardi'], femaleKw);
   window.speechSynthesis.speak(utt);
