@@ -155,11 +155,10 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   background:var(--c-green-light);
   border-color:var(--c-green);
 }
-.ayat-tr.tts-active{
+.ayat-tr-text.tts-active{
   background:var(--c-green-light);
-  border-radius:var(--radius-sm);
-  padding:12px 8px;
-  margin:0 -8px;
+  border-radius:4px;
+  padding:2px 4px;
   color:var(--c-text);
 }
 .ayat-ar{
@@ -174,8 +173,9 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 }
 .ayat-tr{
   padding:12px 0px;font-size:14px;
-  color:var(--c-muted);line-height:1.5;background:var(--c-bg);cursor:pointer;
+  color:var(--c-muted);line-height:1.5;background:var(--c-bg);
 }
+.ayat-tr-text{cursor:pointer;}
 
 /* ── Per-kata ── */
 .kata-ayat{margin-bottom:16px}
@@ -686,7 +686,7 @@ function renderBaca(){
 
       }
       if(showTrAyat){
-        html+=`<div class="ayat-tr" onclick="speakId('${a.tr.replace(/'/g,"\\'")}', this)"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> ${a.tr}</div>`;
+        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> <span class="ayat-tr-text" onclick="speakId('${a.tr.replace(/'/g,"\\'")}', this)">${a.tr}</span></div>`;
       }
       if(showKata){
         const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
