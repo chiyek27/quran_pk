@@ -818,34 +818,87 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   };
 }
 
+// ── Segmented TTS: speak per-punctuation segment, highlight follows each segment ──
+function _speakSegmented(wordSpans, lang, blockEl){
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+
+  const groups = _groupByPunctuation(Array.from(wordSpans));
+  if(!groups.length) return;
+
+  const isAr = lang === 'ar';
+  const femaleArKw = ['female','woman','samira','laila','zira'];
+  const femaleIdKw = ['female','woman','siti','wanita'];
+  const voice = isAr
+    ? _pickVoice('ar', null, femaleArKw)
+    : _pickVoice('id', ['ardi'], femaleIdKw);
+
+  // Clear all highlights
+  const clearAll = () => {
+    wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+    _setActive(null,'tts-active');
+  };
+
+  if(blockEl) _setActive(blockEl,'tts-active');
+
+  let segIdx = 0;
+  const speakNext = () => {
+    if(segIdx >= groups.length){ clearAll(); return; }
+    const {spans: segSpans, pauseExtra} = groups[segIdx++];
+    const segText = segSpans.map(s => s.dataset.w || s.textContent).join(' ');
+
+    const utt = new SpeechSynthesisUtterance(segText);
+    utt.lang = isAr ? 'ar-SA' : 'id-ID';
+    utt.rate = 0.75;
+    utt.pitch = 1;
+    utt.voice = voice;
+
+    // Highlight segmen ini
+    wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+    segSpans.forEach(s => s.classList.add('tts-word-active'));
+
+    // Word-level highlight dalam segmen (Android timer / web onboundary)
+    const cleanupHL = _wordHighlighter(segSpans, utt, segText, lang);
+
+    _startCalibration(utt, segText.length, lang);
+
+    utt.onend = () => {
+      cleanupHL();
+      // Jeda antar segmen sesuai pauseExtra, lalu speak segmen berikutnya
+      setTimeout(speakNext, pauseExtra);
+    };
+
+    window.speechSynthesis.speak(utt);
+  };
+
+  speakNext();
+}
+
 function speakAr(text, blockEl){
   if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const utt=new SpeechSynthesisUtterance(text);
-  utt.lang='ar-SA';
-  utt.rate=0.75;
-  utt.pitch=1;
-  const femaleArKw=['female','woman','samira','laila','zira'];
-  utt.voice=_pickVoice('ar', null, femaleArKw);
 
-  // Ambil wordSpans dari tafsir-ar-span atau kata-item biasa
+  // Tafsir Arab: ada wordSpans → segmented
   let wordSpans = null;
   if(blockEl){
     if(blockEl.classList.contains('tafsir-ar-span')){
       wordSpans = blockEl.querySelectorAll('.tafsir-ar-word');
     }
-    // kata-item (per kata): tidak perlu word highlight karena hanya satu kata
   }
 
   if(wordSpans && wordSpans.length){
-    const cleanup = _wordHighlighter(wordSpans, utt, text, 'ar');
-    utt.onend = () => { cleanup(); _setActive(null,'tts-active'); };
-    _setActive(blockEl,'tts-active');
-  } else {
-    utt.onend=()=>_setActive(null,'tts-active');
-    if(blockEl) _setActive(blockEl,'tts-active');
+    _speakSegmented(wordSpans, 'ar', blockEl);
+    return;
   }
 
+  // Fallback: satu kata (kata-item) — speak langsung
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'ar-SA';
+  utt.rate = 0.75;
+  utt.pitch = 1;
+  utt.voice = _pickVoice('ar', null, ['female','woman','samira','laila','zira']);
+  utt.onend = () => _setActive(null,'tts-active');
+  if(blockEl) _setActive(blockEl,'tts-active');
   _startCalibration(utt, text.length, 'ar');
   window.speechSynthesis.speak(utt);
 }
@@ -854,33 +907,22 @@ function speakId(text, blockEl){
   if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
 
-  // Ambil wordSpans dulu, lalu rekonstruksi teks dari span agar offset cocok
   const wordSpans = blockEl && blockEl.querySelectorAll('.tts-id-word');
 
-  let clean;
   if(wordSpans && wordSpans.length){
-    // Gunakan teks dari span (sudah di-clean saat render), bukan dari dataset/innerText
-    clean = Array.from(wordSpans).map(s => s.dataset.w || s.textContent).join(' ');
-  } else {
-    clean = text.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
+    _speakSegmented(wordSpans, 'id', blockEl);
+    return;
   }
 
-  const utt=new SpeechSynthesisUtterance(clean);
-  utt.lang='id-ID';
-  utt.rate=0.75;
-  utt.pitch=1;
-  const femaleIdKw=['female','woman','siti','wanita'];
-  utt.voice=_pickVoice('id', ['ardi'], femaleIdKw);
-
-  if(wordSpans && wordSpans.length){
-    const cleanup = _wordHighlighter(wordSpans, utt, clean, 'id');
-    utt.onend = () => { cleanup(); _setActive(null,'tts-active'); };
-    _setActive(blockEl,'tts-active');
-  } else {
-    utt.onend=()=>_setActive(null,'tts-active');
-    if(blockEl) _setActive(blockEl,'tts-active');
-  }
-
+  // Fallback: tidak ada spans
+  const clean = text.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang = 'id-ID';
+  utt.rate = 0.75;
+  utt.pitch = 1;
+  utt.voice = _pickVoice('id', ['ardi'], ['female','woman','siti','wanita']);
+  utt.onend = () => _setActive(null,'tts-active');
+  if(blockEl) _setActive(blockEl,'tts-active');
   _startCalibration(utt, clean.length, 'id');
   window.speechSynthesis.speak(utt);
 }
