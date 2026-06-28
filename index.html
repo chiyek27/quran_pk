@@ -151,16 +151,16 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 .ayat-block:last-child{
   border-bottom:1px solid var(--c-border);
 }
-.ayat-block.tts-active{
+.kata-item.tts-active{
   background:var(--c-green-light);
   border-color:var(--c-green);
-  border-top:1.5px solid var(--c-green);
-  border-radius:var(--radius-sm);
-  padding:14px 10px;
-  margin:0 -10px;
 }
-.ayat-block.tts-active:last-child{
-  border-bottom:1.5px solid var(--c-green);
+.ayat-tr.tts-active{
+  background:var(--c-green-light);
+  border-radius:var(--radius-sm);
+  padding:12px 8px;
+  margin:0 -8px;
+  color:var(--c-text);
 }
 .ayat-ar{
   direction:rtl;
@@ -622,9 +622,10 @@ function _getVoiceByName(name){
   return _ttsVoices.find(v=>v.name===name)||null;
 }
 
-function _setActive(elOrNull){
-  document.querySelectorAll('.ayat-block.tts-active').forEach(el=>el.classList.remove('tts-active'));
-  if(elOrNull) elOrNull.classList.add('tts-active');
+function _setActive(elOrNull, cls){
+  const c=cls||'tts-active';
+  document.querySelectorAll('.'+c).forEach(el=>el.classList.remove(c));
+  if(elOrNull) elOrNull.classList.add(c);
 }
 
 function speakAr(text, blockEl){
@@ -636,8 +637,8 @@ function speakAr(text, blockEl){
   utt.pitch=0.7;
   const selName=document.getElementById('tts-ar-voice')?.value;
   utt.voice=selName?_getVoiceByName(selName):null;
-  utt.onend=()=>_setActive(null);
-  if(blockEl) _setActive(blockEl);
+  utt.onend=()=>_setActive(null,'tts-active');
+  if(blockEl) _setActive(blockEl,'tts-active');
   window.speechSynthesis.speak(utt);
 }
 
@@ -651,8 +652,8 @@ function speakId(text, blockEl){
   utt.pitch=0.7;
   const selName=document.getElementById('tts-id-voice')?.value;
   utt.voice=selName?_getVoiceByName(selName):null;
-  utt.onend=()=>_setActive(null);
-  if(blockEl) _setActive(blockEl);
+  utt.onend=()=>_setActive(null,'tts-active');
+  if(blockEl) _setActive(blockEl,'tts-active');
   window.speechSynthesis.speak(utt);
 }
 
@@ -685,14 +686,14 @@ function renderBaca(){
 
       }
       if(showTrAyat){
-        html+=`<div class="ayat-tr" onclick="speakId('${a.tr.replace(/'/g,"\\'")}', this.closest('.ayat-block'))"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> ${a.tr}</div>`;
+        html+=`<div class="ayat-tr" onclick="speakId('${a.tr.replace(/'/g,"\\'")}', this)"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> ${a.tr}</div>`;
       }
       if(showKata){
         const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
         if(kataAyat && kataAyat.length){
           html+=`<div class="kata-grid">`;
           kataAyat.forEach(k=>{
-            html+=`<div class="kata-item" onclick="speakAr('${k.ar}', this.closest('.ayat-block'))"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
+            html+=`<div class="kata-item" onclick="speakAr('${k.ar}', this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
           html+=`<div class="kata-item kata-item-num"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
           html+=`</div>`;
