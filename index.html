@@ -625,14 +625,14 @@ function renderBaca(){
 
       }
       if(showTrAyat){
-        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> <span class="ayat-tr-text" onclick="speakId('${a.tr.replace(/'/g,"\\'")}', this)">${a.tr}</span></div>`;
+        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> <span class="ayat-tr-text" data-tr="${a.tr.replace(/"/g,'&quot;')}" onclick="speakId(this.dataset.tr,this)">${a.tr}</span></div>`;
       }
       if(showKata){
         const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
         if(kataAyat && kataAyat.length){
           html+=`<div class="kata-grid">`;
           kataAyat.forEach(k=>{
-            html+=`<div class="kata-item" onclick="speakAr('${k.ar}', this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
+            html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" onclick="speakAr(this.dataset.ar,this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
           html+=`<div class="kata-item kata-item-num"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
           html+=`</div>`;
