@@ -770,10 +770,11 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   let timerFallback = null;
   let gateTimer = null;
 
-  const rate = utt.rate || 0.9;
+  const rate = utt.rate || 0.75;
   const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 1.5 : 2.5));
   const charsPerSec = baseCPS * rate;
   const minWordMs = 50;
+  const maxWordMs = 300;
   const minSegMs  = 500;
 
   const groups = _groupByPunctuation(wordSpans);
@@ -781,13 +782,13 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   groups.forEach(({spans: group, pauseExtra}) => {
     const bases = group.map(s => {
       const w = s.dataset.w || s.textContent;
-      return Math.max(minWordMs, Math.round((w.length / charsPerSec) * 1000));
+      return Math.min(maxWordMs, Math.max(minWordMs, Math.round((w.length / charsPerSec) * 1000)));
     });
     const segMs = bases.reduce((a, b) => a + b, 0);
     const adjustPerWord = Math.round(Math.max(0, minSegMs - segMs) / group.length);
     bases.forEach((b, i) => {
       const isLast = (i === bases.length - 1);
-      schedule.push(Math.max(minWordMs, b + adjustPerWord) + (isLast ? pauseExtra : 0));
+      schedule.push(Math.min(maxWordMs, Math.max(minWordMs, b + adjustPerWord)) + (isLast ? pauseExtra : 0));
     });
   });
 
@@ -802,7 +803,7 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
     tick();
   };
 
-  // Mulai tick saat onstart fired (suara sudah keluar) + offset 30ms
+  // Mulai tick saat onstart fired (suara sudah keluar) + offset 0ms
   utt.onstart = () => {
     if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
     gateTimer = setTimeout(startFallback, 0);
