@@ -722,19 +722,19 @@ function _startCalibration(utt, textLength, lang){
 // Each segment = array of spans up to (and including) a span whose word ends with punctuation.
 function _groupByPunctuation(wordSpans){
   // Returns [{spans, pauseExtra}] where pauseExtra = bonus ms to add AFTER last word of group
-  // Heavy pause: titik, tanda tanya, tanda seru, ellipsis → +800ms
-  // Light pause : koma, titik dua, titik koma → +350ms
+  // Heavy pause : titik, titik koma, tanda tanya, tanda seru, ellipsis → +300ms (singkat, kalimat selesai)
+  // Light pause : koma, titik dua → +200ms (jeda napas, kalimat lanjut)
   // No punct    : no extra pause
-  const heavyRe = /[.?!؟…]$/;
-  const lightRe = /[,;:،؛]$/;
-  const anyRe   = /[.,;:?!،؛؟…]$/;
+  const heavyRe = /[.;?!؟…؛]$/;   // titik & titik koma masuk heavy (cepat)
+  const lightRe = /[,:،]$/;        // koma & titik dua masuk light (sedikit lebih panjang)
+  const anyRe   = /[.;,:?!،؛؟…]$/;
   const groups = [];
   let cur = [];
   wordSpans.forEach(span => {
     cur.push(span);
     const w = (span.dataset.w || span.textContent).trim();
     if(anyRe.test(w)){
-      const pauseExtra = heavyRe.test(w) ? 800 : 350;
+      const pauseExtra = heavyRe.test(w) ? 300 : 200;
       groups.push({spans: cur, pauseExtra});
       cur = [];
     }
@@ -821,8 +821,7 @@ function speakAr(text, blockEl){
   if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utt=new SpeechSynthesisUtterance(text);
-  utt.lang='ar-SA';
-  utt.rate=0.85;
+  utt.rate=0.75;
   utt.pitch=1;
   const femaleArKw=['female','woman','samira','laila','zira'];
   utt.voice=_pickVoice('ar', null, femaleArKw);
@@ -866,7 +865,7 @@ function speakId(text, blockEl){
 
   const utt=new SpeechSynthesisUtterance(clean);
   utt.lang='id-ID';
-  utt.rate=0.85;
+  utt.rate=0.75;
   utt.pitch=1;
   const femaleIdKw=['female','woman','siti','wanita'];
   utt.voice=_pickVoice('id', ['ardi'], femaleIdKw);
