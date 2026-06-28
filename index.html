@@ -294,6 +294,8 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   border-color:var(--c-green);
   box-shadow:0 0 0 2px rgba(15,110,86,.15);
 }
+/* Extra padding bawah agar konten tidak tertutup player bar */
+#content-flashcard{ padding-bottom: 90px; }
 
 /* ── Player Bar ── */
 #player-bar{
@@ -665,15 +667,31 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   </div>
 <!-- ── Player Bar ── -->
 <div id="player-bar" style="display:none">
-  <div class="player-info">
-    <span class="player-surah" id="player-surah-name"></span>
-    <span class="player-ayat-label" id="player-ayat-label"></span>
+  <!-- Mode Baca -->
+  <div id="player-baca-ui" style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px">
+    <div class="player-info">
+      <span class="player-surah" id="player-surah-name"></span>
+      <span class="player-ayat-label" id="player-ayat-label"></span>
+    </div>
+    <div class="player-controls">
+      <button class="player-btn" id="player-prev" onclick="playerPrev()" title="Ayat sebelumnya">&#9664;&#9664;</button>
+      <button class="player-btn player-btn-main" id="player-play" onclick="playerPlayPause()" title="Play/Pause">&#9654;</button>
+      <button class="player-btn" id="player-next" onclick="playerNext()" title="Ayat berikutnya">&#9654;&#9654;</button>
+      <button class="player-btn player-btn-auto" id="player-auto" onclick="playerToggleAuto()" title="Auto-play">&#8635;</button>
+    </div>
   </div>
-  <div class="player-controls">
-    <button class="player-btn" id="player-prev" onclick="playerPrev()" title="Ayat sebelumnya">&#9664;&#9664;</button>
-    <button class="player-btn player-btn-main" id="player-play" onclick="playerPlayPause()" title="Play/Pause">&#9654;</button>
-    <button class="player-btn" id="player-next" onclick="playerNext()" title="Ayat berikutnya">&#9654;&#9654;</button>
-    <button class="player-btn player-btn-auto" id="player-auto" onclick="playerToggleAuto()" title="Auto-play">&#8635;</button>
+  <!-- Mode Flashcard -->
+  <div id="player-fc-ui" style="display:none;align-items:center;justify-content:space-between;width:100%;gap:10px">
+    <div class="player-info">
+      <span class="player-surah" id="player-fc-label"></span>
+      <span class="player-ayat-label" id="player-fc-ref"></span>
+    </div>
+    <div class="player-controls">
+      <button class="player-btn" id="player-fc-prev" onclick="_fcStop_andPrev()" title="Kartu sebelumnya">&#9664;&#9664;</button>
+      <button class="player-btn player-btn-main" id="player-fc-play" onclick="fcToggleAudio()" title="Play/Stop">&#9654;</button>
+      <button class="player-btn" id="player-fc-next" onclick="_fcStop_andNext()" title="Kartu berikutnya">&#9654;&#9654;</button>
+      <button class="player-btn player-btn-auto" id="player-fc-auto" onclick="_fcToggleAuto()" title="Auto-play">&#8635;</button>
+    </div>
   </div>
 </div>
 </div>
@@ -1459,9 +1477,8 @@ function startFlashcard(){
         if(fr!==null && (a.n<fr||a.n>to)) return;
         const words=KATA_DATA[id][a.n];
         if(words && words.length){
-          words.forEach(w=>{
-            if(w.tr) cards.push({ar:w.ar,tr:w.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name});
-            // kata-level: tidak ada sId/ayatN utk audio per-ayat
+          words.forEach((w,wi)=>{
+            if(w.tr) cards.push({ar:w.ar,tr:w.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name,sId:id,ayatN:a.n,wIdx:wi+1});
           });
         }
       });
@@ -1475,6 +1492,7 @@ function startFlashcard(){
   cards=cards.slice(0,Math.max(1,+fcJumlahEl.value));
   fc={cards,idx:0,flipped:false,done:[]};
   renderFC();
+  _playerFcUpdateUI();
 }
 
 function renderFC(){
@@ -1525,13 +1543,14 @@ function renderFC(){
 
   html+=`</div>`;
 
-  // Audio controls row (hanya jika qari dipilih dan kartu adalah per-ayat)
+  // Audio controls row — muncul jika qari dipilih dan kartu punya referensi audio
   if(fcQariFile && c.sId && c.ayatN){
+    const isKata = !!c.wIdx;
     html+=`<div class="fc-audio-row">
       <button class="fc-audio-btn${isPlaying?' fc-audio-btn-stop':''}" onclick="fcToggleAudio()">
         ${isPlaying?'⏹ Stop':'▶ Play Qari'}
       </button>
-      <div class="fc-audio-label">${isPlaying?'Sedang diputar…':'Tap untuk dengar bacaan'}</div>
+      <div class="fc-audio-label">${isPlaying?'🔊 Sedang diputar…':isKata?'Dengar kata ini':'Dengar ayat ini'}</div>
     </div>`;
   }
 
@@ -1555,17 +1574,17 @@ function renderFC(){
   document.getElementById('fc-output').innerHTML=html;
 }
 
-function setFCMode(v){fc.showTr=v;fc.flipped=false;_fcStopAudio();renderFC();}
+function setFCMode(v){fc.showTr=v;fc.flipped=false;_fcStopAudio();renderFC();_playerFcUpdateUI();}
 function flipFC(){fc.flipped=!fc.flipped;renderFC();}
 function fcNext(){
-  if(_fcAudio && !_fcAudio.paused) return; // lock saat audio
+  if(_fcAudio && !_fcAudio.paused) return;
   _fcStopAudio();
-  fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;renderFC();
+  fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;renderFC();_playerFcUpdateUI();
 }
 function fcPrev(){
-  if(_fcAudio && !_fcAudio.paused) return; // lock saat audio
+  if(_fcAudio && !_fcAudio.paused) return;
   _fcStopAudio();
-  fc.idx=(fc.idx-1+fc.cards.length)%fc.cards.length;fc.flipped=false;renderFC();
+  fc.idx=(fc.idx-1+fc.cards.length)%fc.cards.length;fc.flipped=false;renderFC();_playerFcUpdateUI();
 }
 function fcMark(know){
   if(_fcAudio && !_fcAudio.paused) return;
@@ -1573,7 +1592,15 @@ function fcMark(know){
   if(know&&!fc.done.includes(fc.idx)) fc.done.push(fc.idx);
   else fc.done=fc.done.filter(d=>d!==fc.idx);
   fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;
+  renderFC();_playerFcUpdateUI();
+}
+function _fcAutoNext(){
+  if(fc.cards.length===0) return;
+  fc.idx=(fc.idx+1)%fc.cards.length;
+  fc.flipped=false;
   renderFC();
+  _playerFcUpdateUI();
+  setTimeout(_fcPlayCurrent, 200);
 }
 let _fcTouchHandled=false;
 function fcClick(e){
@@ -1869,49 +1896,136 @@ function onFcQariChange(){
   const file=(document.getElementById('fc-qari')||{}).value||'';
   if(file) _loadRecitationData(file,()=>{});
   renderFC();
+  _playerFcUpdateUI();
 }
 
 function fcToggleAudio(){
   if(_fcAudio && !_fcAudio.paused){
     _fcStopAudio();
+    _playerFcUpdateUI();
     renderFC();
     return;
   }
+  _fcPlayCurrent();
+}
+
+function _fcPlayCurrent(){
   const c = fc.cards[fc.idx];
   if(!c || !c.sId || !c.ayatN) return;
   const file=(document.getElementById('fc-qari')||{}).value||'';
   if(!file) return;
   const key = c.sId + ':' + c.ayatN;
+  const isKata = !!c.wIdx; // per-kata ada wIdx, per-ayat tidak
 
   _fcStopAudio();
 
   _loadRecitationData(file, function(data){
     const entry = data[key];
-    if(!entry || !entry.audio_url){ renderFC(); return; }
+    if(!entry || !entry.audio_url){ renderFC(); _playerFcUpdateUI(); return; }
 
     const audio = new Audio(entry.audio_url);
     _fcAudio = audio;
 
-    audio.addEventListener('loadedmetadata',()=>{
-      audio.currentTime=0;
-      audio.play().catch(()=>{ _fcAudio=null; renderFC(); });
-      renderFC(); // update UI ke "Sedang diputar"
-    });
+    if(isKata){
+      // Per-kata: cari segmen kata ini lalu seek
+      const seg = (entry.segments||[]).find(s=>s[0]===c.wIdx);
+      if(!seg){ _fcAudio=null; renderFC(); _playerFcUpdateUI(); return; }
+      const startMs=seg[1], endMs=seg[2];
 
-    audio.addEventListener('ended',()=>{
-      _fcAudio=null;
-      renderFC(); // update UI kembali normal
-    });
+      audio.addEventListener('loadedmetadata',()=>{
+        audio.currentTime=startMs/1000;
+        audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+        renderFC();
+        _playerFcUpdateUI();
+      });
+      audio.addEventListener('timeupdate',()=>{
+        if(audio.currentTime*1000>=endMs){
+          audio.pause();
+          _fcAudio=null;
+          renderFC();
+          _playerFcUpdateUI();
+          if(_playerFcAuto) setTimeout(_fcAutoNext, 400);
+        }
+      });
+    } else {
+      // Per-ayat: putar full
+      audio.addEventListener('loadedmetadata',()=>{
+        audio.currentTime=0;
+        audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+        renderFC();
+        _playerFcUpdateUI();
+      });
+      audio.addEventListener('ended',()=>{
+        _fcAudio=null;
+        renderFC();
+        _playerFcUpdateUI();
+        if(_playerFcAuto) setTimeout(_fcAutoNext, 400);
+      });
+    }
 
     audio.addEventListener('error',()=>{
       _fcAudio=null;
       renderFC();
+      _playerFcUpdateUI();
     });
   });
 }
 // ───────────────────────────────────────────────────────────────────────────
 
-let _playerSurah = 0;    // surah index aktif
+// ── Flashcard Player Bar ────────────────────────────────────────────────────
+let _playerFcAuto = false;
+
+function _playerFcUpdateUI(){
+  const bar = document.getElementById('player-bar');
+  const fcUI = document.getElementById('player-fc-ui');
+  const bacaUI = document.getElementById('player-baca-ui');
+
+  if(activeTab !== 'flashcard'){
+    fcUI.style.display='none';
+    return;
+  }
+
+  const fcFile = (document.getElementById('fc-qari')||{}).value||'';
+  if(!fcFile || fc.cards.length===0){
+    bar.style.display='none';
+    return;
+  }
+
+  bar.style.display='flex';
+  bacaUI.style.display='none';
+  fcUI.style.display='flex';
+
+  const c = fc.cards[fc.idx];
+  const isPlaying = !!_fcAudio && !_fcAudio.paused;
+
+  // Tampilkan kata arab (potong jika panjang) dan referensi ayat
+  document.getElementById('player-fc-label').textContent = c ? (c.ar.length>22 ? c.ar.slice(0,20)+'…' : c.ar) : '';
+  document.getElementById('player-fc-ref').textContent   = c ? c.ref : '';
+
+  const playBtn = document.getElementById('player-fc-play');
+  playBtn.innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
+  playBtn.classList.toggle('playing', isPlaying);
+
+  document.getElementById('player-fc-auto').classList.toggle('on', _playerFcAuto);
+  document.getElementById('player-fc-prev').disabled = fc.idx <= 0 || isPlaying;
+  document.getElementById('player-fc-next').disabled = fc.idx >= fc.cards.length-1 || isPlaying;
+}
+
+function _fcStop_andPrev(){
+  if(_fcAudio && !_fcAudio.paused) return;
+  _fcStopAudio();
+  fc.idx=Math.max(0,fc.idx-1);fc.flipped=false;renderFC();_playerFcUpdateUI();
+}
+function _fcStop_andNext(){
+  if(_fcAudio && !_fcAudio.paused) return;
+  _fcStopAudio();
+  fc.idx=Math.min(fc.cards.length-1,fc.idx+1);fc.flipped=false;renderFC();_playerFcUpdateUI();
+}
+function _fcToggleAuto(){
+  _playerFcAuto=!_playerFcAuto;
+  _playerFcUpdateUI();
+}
+// ── Baca Player Bar ─────────────────────────────────────────────────────────
 let _playerAyat  = 0;    // ayat number aktif
 let _playerAuto  = false;
 let _playerPlaying = false;
@@ -2101,10 +2215,23 @@ playAyatAudio = function(numEl){
 
 // Tampilkan player bar saat tab baca aktif dan ada qari dipilih
 function _playerCheckShow(){
-  const file = _currentQariFile();
   const bar = document.getElementById('player-bar');
-  if(!file || activeTab !== 'baca'){ bar.style.display='none'; return; }
-  // Inisialisasi surah/ayat dari setting jika belum ada
+  const fcUI = document.getElementById('player-fc-ui');
+  const bacaUI = document.getElementById('player-baca-ui');
+
+  if(activeTab === 'flashcard'){
+    // Serahkan ke _playerFcUpdateUI
+    bacaUI.style.display='none';
+    _playerFcUpdateUI();
+    return;
+  }
+
+  // Mode Baca
+  fcUI.style.display='none';
+  bacaUI.style.display='flex';
+
+  const file = _currentQariFile();
+  if(!file){ bar.style.display='none'; return; }
   if(!_playerSurah){
     _playerSurah = +document.getElementById('sel-surah').value;
     const list = _playerGetAyatList();
