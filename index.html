@@ -822,10 +822,13 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
     let entry = cache[key];
     if (typeof entry === 'string') entry = cache[entry];
     if (!entry || !entry.text) return '';
-    const safe = entry.text.replace(/"/g, '&quot;');
+    // Strip HTML tags — some tafsir files (e.g. As-Sa'di) contain raw HTML markup
+    const tmp = document.createElement('div');
+    tmp.innerHTML = entry.text;
+    const plainText = (tmp.textContent || tmp.innerText || '').replace(/\s+/g,' ').trim();
+    if (!plainText) return '';
     if (lang === 'ar') {
       // Split text into words, wrap each in a span for word-level TTS highlight
-      const plainText = entry.text;
       const words = plainText.split(/\s+/).filter(Boolean);
       const wordSpansHtml = words.map(w =>
         `<span class="tafsir-ar-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
@@ -833,9 +836,12 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
       bodyHtml = `<div class="tafsir-text ar" id="tafsir-text-ar-${id}"
         ><span class="tafsir-ar-span" data-ar="${plainText.replace(/"/g,'&quot;')}" onclick="speakAr(this.dataset.ar,this)">${wordSpansHtml}</span></div>`;
     } else {
+      const idWords = plainText.split(/\s+/).filter(Boolean).map(w =>
+        `<span class="tts-id-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
+      ).join(' ');
       bodyHtml = `<div class="tafsir-text id" id="tafsir-text-id-${id}"
         onclick="speakId(this.innerText,this)"
-        >${entry.text}</div>`;
+        >${idWords}</div>`;
     }
   }
 
