@@ -697,18 +697,35 @@ function _hasBoundary(){
 }
 let _boundarySupported = false;
 
+// Group wordSpans into punctuation-delimited segments.
+// Each segment = array of spans up to (and including) a span whose word ends with punctuation.
+function _groupByPunctuation(wordSpans){
+  const puncRe = /[.,;:?!،؛؟…]$/;
+  const groups = [];
+  let cur = [];
+  wordSpans.forEach(span => {
+    cur.push(span);
+    if(puncRe.test((span.dataset.w || span.textContent).trim())){
+      groups.push(cur);
+      cur = [];
+    }
+  });
+  if(cur.length) groups.push(cur);
+  return groups;
+}
+
 function _wordHighlighter(wordSpans, utt, cleanText){
-  // Try onboundary first; fall back to timer-based on first utterance
   let timerFallback = null;
 
+  // onboundary: highlight per word natively (browser handles timing)
   utt.onboundary = e => {
     if(e.name !== 'word') return;
     _boundarySupported = true;
-    if(timerFallback){ clearInterval(timerFallback); timerFallback = null; }
+    if(timerFallback){ clearTimeout(timerFallback); timerFallback = null; }
     wordSpans.forEach(s => s.classList.remove('tts-word-active'));
     let offset = 0;
     for(let i = 0; i < wordSpans.length; i++){
-      const wlen = wordSpans[i].dataset.w.length + 1;
+      const wlen = (wordSpans[i].dataset.w || wordSpans[i].textContent).length + 1;
       if(e.charIndex >= offset && e.charIndex < offset + wlen){
         wordSpans[i].classList.add('tts-word-active');
         break;
@@ -717,31 +734,48 @@ function _wordHighlighter(wordSpans, utt, cleanText){
     }
   };
 
-  // Timer fallback — proportional per-word timing based on char count
+  // Timer fallback (Android / no onboundary):
+  // Mixed timing: each word gets its own char-proportional duration,
+  // PLUS the segment's punctuation pause bonus is distributed evenly across all words.
+  //
+  // Per word:  baseMs  = max(minWordMs, charLen / charsPerSec * 1000)
+  // Segment:   segMs   = sum of all baseMs in segment
+  //            pauseMs = max(0, minSegMs - segMs)  <- extra from punctuation pause
+  //            bonusMs = pauseMs / groupLen         <- split evenly to each word
+  // Final per word delay = baseMs + bonusMs
   const rate = utt.rate || 0.9;
-  // Chars-per-second estimate: ~14 chars/sec at rate=1.0 for Indonesian/Arabic
   const charsPerSec = 14 * rate;
-  // Min per word ~120ms, so very short words still get a moment
-  const minMs = 120;
+  const minWordMs = 100;  // floor per word (short words like "di","dan" still visible)
+  const minSegMs  = 350;  // minimum total ms per segment (punctuation pause budget)
 
-  const words = Array.from(wordSpans).map(s => s.dataset.w || s.textContent);
-  const totalChars = words.reduce((s, w) => s + w.length, 0) || 1;
+  const groups = _groupByPunctuation(wordSpans);
+
+  // Pre-compute flat delay schedule (one entry per wordSpan)
+  const schedule = [];
+  groups.forEach(group => {
+    const bases = group.map(s => {
+      const w = s.dataset.w || s.textContent;
+      return Math.max(minWordMs, Math.round((w.length / charsPerSec) * 1000));
+    });
+    const segMs = bases.reduce((a, b) => a + b, 0);
+    const bonusMs = Math.round(Math.max(0, minSegMs - segMs) / group.length);
+    bases.forEach(b => schedule.push(b + bonusMs));
+  });
 
   const startFallback = () => {
     if(_boundarySupported) return;
     let idx = 0;
-    const scheduleNext = () => {
+    const tick = () => {
       if(idx >= wordSpans.length) return;
       wordSpans.forEach(s => s.classList.remove('tts-word-active'));
       wordSpans[idx].classList.add('tts-word-active');
-      const ms = Math.max(minMs, Math.round((words[idx].length / charsPerSec) * 1000));
+      const delay = schedule[idx] || minWordMs;
       idx++;
-      timerFallback = setTimeout(scheduleNext, ms);
+      timerFallback = setTimeout(tick, delay);
     };
-    scheduleNext();
+    tick();
   };
 
-  // Give boundary 300ms to fire; if not, start timer
   const gateTimer = setTimeout(startFallback, 300);
 
   return () => {
