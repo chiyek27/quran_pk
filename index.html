@@ -239,19 +239,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 .fc-ar-sm{font-family:"Conv_original-hafs";font-size:26px;color:var(--c-muted);direction:rtl}
 .fc-surah{font-size:12px;color:var(--c-muted);margin-top:10px}
 .swipe-hint{font-size:11px;color:var(--c-muted);text-align:center;margin-top:10px;opacity:.7}
-.fc-progress{display:flex;gap:4px;flex-wrap:wrap;margin-top:14px;justify-content:center}
-.fc-dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--c-border);background:transparent}
-.fc-dot.done{background:var(--c-green);border-color:var(--c-green)}
-.fc-dot.cur{background:var(--c-gold);border-color:var(--c-gold)}
-.fc-actions{display:flex;gap:10px;margin-top:14px}
-.fc-actions button{
-  flex:1;padding:13px 8px;border-radius:var(--radius-sm);
-  font-size:14px;font-weight:500;cursor:pointer;
-  transition:opacity .15s;
-}
-.fc-actions button:active{opacity:.8}
-.fc-act-repeat{border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-muted)}
-.fc-act-know{border:none;background:var(--c-green);color:#fff}
+
 
 /* ── Latihan result / progress ── */
 .lat-progress-bar{height:5px;background:var(--c-border);border-radius:3px;margin-bottom:14px;overflow:hidden}
@@ -273,23 +261,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 
 .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--c-green-light);color:var(--c-green);margin:2px}
 
-/* ── Flashcard Audio ── */
-.fc-audio-row{
-  display:flex;align-items:center;gap:10px;
-  margin-top:12px;padding:10px 14px;
-  background:var(--c-surface);border:1px solid var(--c-border);
-  border-radius:var(--radius-sm);
-}
-.fc-audio-btn{
-  padding:8px 16px;border-radius:20px;
-  border:1px solid var(--c-green);background:var(--c-green);
-  color:#fff;font-size:13px;font-weight:500;cursor:pointer;
-  white-space:nowrap;transition:opacity .15s;
-  -webkit-tap-highlight-color:transparent;
-}
-.fc-audio-btn:active{opacity:.8}
-.fc-audio-btn-stop{background:#d32f2f;border-color:#d32f2f}
-.fc-audio-label{font-size:12px;color:var(--c-muted);flex:1}
+/* ── Flashcard Audio playing indicator ── */
 .flashcard.fc-audio-playing{
   border-color:var(--c-green);
   box-shadow:0 0 0 2px rgba(15,110,86,.15);
@@ -1400,6 +1372,8 @@ function checkAnswer(i,chosen,correct){
 // FLASHCARD
 let fc={cards:[],idx:0,flipped:false,done:[]};
 let fcOrder='urut';
+// _fcFlipState: true = sedang tampil sisi balik (back), false = depan (front)
+// Saat tap flip kartu → catat; saat pindah kartu otomatis (audio) → pertahankan state ini
 function toggleFCOrder(v){
   fcOrder=v;
   document.getElementById('tgl-fc-urut').className='tgl'+(v==='urut'?' on':'');
@@ -1496,7 +1470,7 @@ function startFlashcard(){
 }
 
 function renderFC(){
-  const {cards,idx,flipped,done}=fc;
+  const {cards,idx,flipped}=fc;
   if(cards.length===0){document.getElementById('fc-output').innerHTML='<p style="color:var(--c-muted);font-size:13px;text-align:center">Mulai flashcard dari pengaturan di atas.</p>';return;}
   const c=cards[idx];
   const fcQariFile = (document.getElementById('fc-qari')||{}).value||'';
@@ -1542,35 +1516,8 @@ function renderFC(){
   }
 
   html+=`</div>`;
-
-  // Audio controls row — muncul jika qari dipilih dan kartu punya referensi audio
-  if(fcQariFile && c.sId && c.ayatN){
-    const isKata = !!c.wIdx;
-    html+=`<div class="fc-audio-row">
-      <button class="fc-audio-btn${isPlaying?' fc-audio-btn-stop':''}" onclick="fcToggleAudio()">
-        ${isPlaying?'⏹ Stop':'▶ Play Qari'}
-      </button>
-      <div class="fc-audio-label">${isPlaying?'🔊 Sedang diputar…':isKata?'Dengar kata ini':'Dengar ayat ini'}</div>
-    </div>`;
-  }
-
-  html+=`<div class="swipe-hint">${isPlaying?'Navigasi dikunci saat audio berjalan':'← Geser atau ketuk untuk navigasi →'}</div>`;
-
-  // Progress dots
-  const maxDots=Math.min(cards.length,30);
-  if(cards.length>1&&cards.length<=60){
-    html+=`<div class="fc-progress">`;
-    for(let i=0;i<Math.min(cards.length,maxDots);i++){
-      const cl=i===idx?'fc-dot cur':(done.includes(i)?'fc-dot done':'fc-dot');
-      html+=`<div class="${cl}"></div>`;
-    }
-    html+=`</div>`;
-  }
-
-  html+=`<div class="fc-actions">
-    <button class="fc-actions button fc-act-repeat" onclick="fcMark(false)">Ulangi</button>
-    <button class="fc-actions button fc-act-know" onclick="fcMark(true)">Tahu ✓</button>
-  </div></div>`;
+  html+=`<div class="swipe-hint">${isPlaying?'⏩ Audio berjalan — kartu otomatis berpindah':'← Geser atau ketuk untuk navigasi →'}</div>`;
+  html+=`</div>`;
   document.getElementById('fc-output').innerHTML=html;
 }
 
@@ -1579,25 +1526,22 @@ function flipFC(){fc.flipped=!fc.flipped;renderFC();}
 function fcNext(){
   if(_fcAudio && !_fcAudio.paused) return;
   _fcStopAudio();
-  fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;renderFC();_playerFcUpdateUI();
+  fc.idx=(fc.idx+1)%fc.cards.length;renderFC();_playerFcUpdateUI();
 }
 function fcPrev(){
   if(_fcAudio && !_fcAudio.paused) return;
   _fcStopAudio();
-  fc.idx=(fc.idx-1+fc.cards.length)%fc.cards.length;fc.flipped=false;renderFC();_playerFcUpdateUI();
+  fc.idx=(fc.idx-1+fc.cards.length)%fc.cards.length;renderFC();_playerFcUpdateUI();
 }
 function fcMark(know){
   if(_fcAudio && !_fcAudio.paused) return;
   _fcStopAudio();
-  if(know&&!fc.done.includes(fc.idx)) fc.done.push(fc.idx);
-  else fc.done=fc.done.filter(d=>d!==fc.idx);
-  fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;
-  renderFC();_playerFcUpdateUI();
+  fc.idx=(fc.idx+1)%fc.cards.length;renderFC();_playerFcUpdateUI();
 }
 function _fcAutoNext(){
   if(fc.cards.length===0) return;
   fc.idx=(fc.idx+1)%fc.cards.length;
-  fc.flipped=false;
+  // Pertahankan flipped state
   renderFC();
   _playerFcUpdateUI();
   setTimeout(_fcPlayCurrent, 200);
@@ -1768,6 +1712,9 @@ function onQariChange() {
   // Preload file baru di background
   const file = _currentQariFile();
   if (file) _loadRecitationData(file, () => {});
+  // Sinkron ke fc-qari
+  const fcSel = document.getElementById('fc-qari');
+  if(fcSel && fcSel.value !== file){ fcSel.value = file; }
 }
 
 // Audio instance aktif
@@ -1895,6 +1842,9 @@ function onFcQariChange(){
   _fcStopAudio();
   const file=(document.getElementById('fc-qari')||{}).value||'';
   if(file) _loadRecitationData(file,()=>{});
+  // Sinkron ke sel-qari (baca)
+  const bacaSel = document.getElementById('sel-qari');
+  if(bacaSel && bacaSel.value !== file){ bacaSel.value = file; }
   renderFC();
   _playerFcUpdateUI();
 }
@@ -1910,64 +1860,135 @@ function fcToggleAudio(){
 }
 
 function _fcPlayCurrent(){
-  const c = fc.cards[fc.idx];
-  if(!c || !c.sId || !c.ayatN) return;
   const file=(document.getElementById('fc-qari')||{}).value||'';
-  if(!file) return;
+  if(!file || fc.cards.length===0){ renderFC(); _playerFcUpdateUI(); return; }
+
+  // Cari kartu pertama yang memiliki ayat valid sebagai anchor audio
+  // Kumpulkan semua kartu yang berasal dari ayat yang sama sebagai "sesi" sekuensial
+  // Strategi: ambil ayat dari kartu idx saat ini, putar audio ayat itu penuh,
+  // lalu geser kartu sesuai timing segment masing-masing kata.
+  // Jika kartu bukan per-kata (per-ayat), putar ayatnya lalu next kartu.
+
+  const c = fc.cards[fc.idx];
+  if(!c || !c.sId || !c.ayatN){ renderFC(); _playerFcUpdateUI(); return; }
+
   const key = c.sId + ':' + c.ayatN;
-  const isKata = !!c.wIdx; // per-kata ada wIdx, per-ayat tidak
+  const isKata = !!c.wIdx;
 
   _fcStopAudio();
 
   _loadRecitationData(file, function(data){
     const entry = data[key];
-    if(!entry || !entry.audio_url){ renderFC(); _playerFcUpdateUI(); return; }
 
-    const audio = new Audio(entry.audio_url);
-    _fcAudio = audio;
+    if(!entry || !entry.audio_url){
+      // Tidak ada data audio → langsung auto-next
+      renderFC(); _playerFcUpdateUI();
+      if(_playerFcAuto) setTimeout(_fcAutoNext, 400);
+      return;
+    }
 
-    if(isKata){
-      // Per-kata: cari segmen kata ini lalu seek
-      const seg = (entry.segments||[]).find(s=>s[0]===c.wIdx);
-      if(!seg){ _fcAudio=null; renderFC(); _playerFcUpdateUI(); return; }
-      const startMs=seg[1], endMs=seg[2];
+    const segments = entry.segments || [];
 
-      audio.addEventListener('loadedmetadata',()=>{
-        audio.currentTime=startMs/1000;
-        audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
-        renderFC();
-        _playerFcUpdateUI();
-      });
-      audio.addEventListener('timeupdate',()=>{
-        if(audio.currentTime*1000>=endMs){
-          audio.pause();
-          _fcAudio=null;
-          renderFC();
-          _playerFcUpdateUI();
-          if(_playerFcAuto) setTimeout(_fcAutoNext, 400);
-        }
-      });
-    } else {
-      // Per-ayat: putar full
+    if(!isKata){
+      // ── Mode per-ayat: putar penuh lalu pindah kartu ──
+      const audio = new Audio(entry.audio_url);
+      _fcAudio = audio;
       audio.addEventListener('loadedmetadata',()=>{
         audio.currentTime=0;
         audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
-        renderFC();
-        _playerFcUpdateUI();
+        renderFC(); _playerFcUpdateUI();
       });
       audio.addEventListener('ended',()=>{
-        _fcAudio=null;
-        renderFC();
-        _playerFcUpdateUI();
+        _fcAudio=null; renderFC(); _playerFcUpdateUI();
         if(_playerFcAuto) setTimeout(_fcAutoNext, 400);
       });
+      audio.addEventListener('error',()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+      return;
     }
 
-    audio.addEventListener('error',()=>{
-      _fcAudio=null;
+    // ── Mode per-kata: audio per ayat, kartu geser per segment ──
+    // Bangun map: wIdx → kartu index dalam fc.cards yang relevan dengan ayat ini
+    // dimulai dari fc.idx saat ini
+    // Kumpulkan semua kartu berurutan dari idx ini yang punya ayat sama
+    const sameSId = c.sId, sameAyat = c.ayatN;
+    const cardSlice = []; // {fcIdx, wIdx}
+    for(let i = fc.idx; i < fc.cards.length; i++){
+      const ci = fc.cards[i];
+      if(ci.sId === sameSId && ci.ayatN === sameAyat && ci.wIdx){
+        cardSlice.push({fcIdx: i, wIdx: ci.wIdx});
+      } else {
+        break; // berhenti jika ayat sudah beda
+      }
+    }
+    if(cardSlice.length === 0){ renderFC(); _playerFcUpdateUI(); return; }
+
+    // Bangun timeline: tiap entry cardSlice punya startMs (dari segment)
+    // Jika segment tidak ada untuk wIdx → pakai waktu setelah segment sebelumnya berakhir
+    const timeline = [];
+    let lastEndMs = 0;
+    for(let ci of cardSlice){
+      const seg = segments.find(s=>s[0]===ci.wIdx);
+      if(seg){
+        timeline.push({fcIdx: ci.fcIdx, startMs: seg[1], endMs: seg[2]});
+        lastEndMs = seg[2];
+      } else {
+        // Tidak ada segment → tampilkan langsung setelah entry sebelumnya berakhir
+        timeline.push({fcIdx: ci.fcIdx, startMs: lastEndMs, endMs: lastEndMs});
+      }
+    }
+
+    const audio = new Audio(entry.audio_url);
+    _fcAudio = audio;
+    let timelineIdx = 0;
+    let _fcCheckTimer = null;
+
+    function advanceToCard(tlIdx){
+      if(tlIdx >= timeline.length) return;
+      const entry2 = timeline[tlIdx];
+      fc.idx = entry2.fcIdx;
       renderFC();
       _playerFcUpdateUI();
+    }
+
+    audio.addEventListener('loadedmetadata',()=>{
+      audio.currentTime = timeline[0].startMs / 1000;
+      audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+      // Set kartu pertama
+      advanceToCard(0);
+      renderFC(); _playerFcUpdateUI();
     });
+
+    audio.addEventListener('timeupdate',()=>{
+      const nowMs = audio.currentTime * 1000;
+      // Cek apakah sudah waktunya pindah ke kartu berikutnya
+      while(timelineIdx + 1 < timeline.length){
+        const nextEntry = timeline[timelineIdx + 1];
+        // Pindah saat waktu audio sudah melewati startMs kartu berikutnya,
+        // ATAU jika endMs kartu saat ini sudah terlewat dan startMs berikutnya belum tiba
+        const curEnd = timeline[timelineIdx].endMs;
+        const nextStart = nextEntry.startMs;
+        const shouldAdvance = nowMs >= nextStart ||
+          (curEnd > 0 && nowMs >= curEnd && nowMs < nextStart);
+        if(shouldAdvance){
+          timelineIdx++;
+          advanceToCard(timelineIdx);
+        } else {
+          break;
+        }
+      }
+    });
+
+    audio.addEventListener('ended',()=>{
+      _fcAudio=null;
+      // Pastikan kartu terakhir dalam slice sudah aktif
+      if(timeline.length > 0){
+        fc.idx = timeline[timeline.length-1].fcIdx;
+      }
+      renderFC(); _playerFcUpdateUI();
+      if(_playerFcAuto) setTimeout(_fcAutoNext, 400);
+    });
+
+    audio.addEventListener('error',()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
   });
 }
 // ───────────────────────────────────────────────────────────────────────────
