@@ -273,6 +273,28 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 
 .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--c-green-light);color:var(--c-green);margin:2px}
 
+/* ── Flashcard Audio ── */
+.fc-audio-row{
+  display:flex;align-items:center;gap:10px;
+  margin-top:12px;padding:10px 14px;
+  background:var(--c-surface);border:1px solid var(--c-border);
+  border-radius:var(--radius-sm);
+}
+.fc-audio-btn{
+  padding:8px 16px;border-radius:20px;
+  border:1px solid var(--c-green);background:var(--c-green);
+  color:#fff;font-size:13px;font-weight:500;cursor:pointer;
+  white-space:nowrap;transition:opacity .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.fc-audio-btn:active{opacity:.8}
+.fc-audio-btn-stop{background:#d32f2f;border-color:#d32f2f}
+.fc-audio-label{font-size:12px;color:var(--c-muted);flex:1}
+.flashcard.fc-audio-playing{
+  border-color:var(--c-green);
+  box-shadow:0 0 0 2px rgba(15,110,86,.15);
+}
+
 /* ── Player Bar ── */
 #player-bar{
   position:fixed;bottom:0;left:50%;transform:translateX(-50%);
@@ -613,6 +635,28 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
           <div class="tgl on" id="tgl-fc-urut" onclick="toggleFCOrder('urut')">Urut</div>
           <div class="tgl" id="tgl-fc-acak" onclick="toggleFCOrder('acak')">🔀 Acak</div>
         </div>
+      </div>
+      <div class="settings-section-label">Audio</div>
+      <div class="settings-row">
+        <label>Qari</label>
+        <select id="fc-qari" onchange="onFcQariChange()" style="max-width:200px">
+          <option value="">— Tidak tampilkan —</option>
+          <option value="ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs-949.json">Abdul Basit (Mujawwad)</option>
+          <option value="ayah-recitation-abdul-basit-abdul-samad-murattal-hafs-950.json">Abdul Basit (Murattal)</option>
+          <option value="ayah-recitation-mishari-rashid-al-afasy-murattal-hafs-953.json">Mishari Rashid Al-Afasy</option>
+          <option value="ayah-recitation-mahmoud-khalil-al-husary-murattal-hafs-957.json">Mahmoud Khalil Al-Husary</option>
+          <option value="ayah-recitation-mahmoud-khalil-al-husary-mujawwad-hafs-956.json">Al-Husary (Mujawwad)</option>
+          <option value="ayah-recitation-mahmoud-khalil-al-husary-murattal-hafs-955.json">Al-Husary (Muallim)</option>
+          <option value="ayah-recitation-abdul-rahman-al-sudais-murattal-hafs-951.json">Abdul Rahman Al-Sudais</option>
+          <option value="ayah-recitation-abdur-rahman-as-sudais-recitation.json">Abdur Rahman As-Sudais (Alt)</option>
+          <option value="ayah-recitation-abu-bakr-al-shatri-murattal-hafs-952.json">Abu Bakr Al-Shatri</option>
+          <option value="ayah-recitation-hani-ar-rifai-recitation-murattal-hafs-68.json">Hani Ar-Rifai</option>
+          <option value="ayah-recitation-khalifa-al-tunaiji-murattal-hafs-958.json">Khalifa Al-Tunaiji</option>
+          <option value="ayah-recitation-maher-al-mu-aiqly-murattal-hafs-948.json">Maher Al-Muaiqly</option>
+          <option value="ayah-recitation-saad-al-ghamdi-murattal-hafs-954.json">Saad Al-Ghamdi</option>
+          <option value="ayah-recitation-saud-al-shuraim-murattal-hafs-960.json">Saud Al-Shuraim</option>
+          <option value="ayah-recitation-yasser-al-dosari-murattal-hafs-961.json">Yasser Al-Dosari</option>
+        </select>
       </div>
       <button class="apply-btn" onclick="startFlashcard();closeSettings('fc')">Mulai Flashcard</button>
     </div>
@@ -1398,6 +1442,7 @@ function updateFcJumlah(){
 }
 
 function startFlashcard(){
+  _fcStopAudio();
   const scope=document.getElementById('fc-scope').value;
   const sId=document.getElementById('fc-surah').value;
   const level=document.getElementById('fc-level').value;
@@ -1416,11 +1461,12 @@ function startFlashcard(){
         if(words && words.length){
           words.forEach(w=>{
             if(w.tr) cards.push({ar:w.ar,tr:w.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name});
+            // kata-level: tidak ada sId/ayatN utk audio per-ayat
           });
         }
       });
     } else {
-      s.ayat.forEach(a=>cards.push({ar:a.ar,tr:a.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name}));
+      s.ayat.forEach(a=>cards.push({ar:a.ar,tr:a.tr,ref:`Q.S ${s.name} : ${a.n}`,surah:s.name,sId:id,ayatN:a.n}));
     }
   });
   if(fcOrder==='acak') cards.sort(()=>Math.random()-.5);
@@ -1435,28 +1481,29 @@ function renderFC(){
   const {cards,idx,flipped,done}=fc;
   if(cards.length===0){document.getElementById('fc-output').innerHTML='<p style="color:var(--c-muted);font-size:13px;text-align:center">Mulai flashcard dari pengaturan di atas.</p>';return;}
   const c=cards[idx];
+  const fcQariFile = (document.getElementById('fc-qari')||{}).value||'';
+  const isPlaying = !!_fcAudio && !_fcAudio.paused;
+
   let html=`<div class="fc-wrap">
     <div class="fc-mode-row">
       <button class="fc-mode-btn ${!fc.showTr?'on':''}" onclick="setFCMode(false)">Arab → Arti</button>
       <button class="fc-mode-btn ${fc.showTr?'on':''}" onclick="setFCMode(true)">Arti → Arab</button>
     </div>
     <div class="fc-nav">
-      <button class="fc-btn" onclick="fcPrev()" aria-label="Sebelumnya">‹</button>
+      <button class="fc-btn" onclick="fcPrev()" aria-label="Sebelumnya" ${isPlaying?'disabled':''}>‹</button>
       <span>${idx+1} / ${cards.length}</span>
-      <button class="fc-btn" onclick="fcNext()" aria-label="Berikutnya">›</button>
+      <button class="fc-btn" onclick="fcNext()" aria-label="Berikutnya" ${isPlaying?'disabled':''}>›</button>
     </div>
-    <div class="flashcard" id="fc-card" ontouchstart="fcTouch(event)" onclick="fcClick(event)">`;
+    <div class="flashcard${isPlaying?' fc-audio-playing':''}" id="fc-card" ontouchstart="fcTouch(event)" onclick="fcClick(event)">`;
 
   if(!flipped){
     const main=fc.showTr?c.tr:c.ar;
     const isAr=!fc.showTr;
     html+=`<div class="fc-front">
       <div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:20px;color:var(--c-text)'}">${main}</div>
-      <div class="fc-hint">Tap untuk lihat jawaban</div>
+      <div class="fc-hint">${isPlaying?'🔊 Sedang diputar…':'Tap untuk lihat jawaban'}</div>
     </div>`;
   } else {
-    // Arab → Arti: jawaban = terjemahan (hijau+besar), Arab kecil di atas
-    // Arti → Arab: jawaban = arab (hijau+besar), terjemahan kecil di bawah
     if(!fc.showTr){
       html+=`<div class="fc-back">
         <div class="fc-ar-sm" style="font-size:18px;direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted);font-weight:400">
@@ -1475,17 +1522,54 @@ function renderFC(){
       </div>`;
     }
   }
-  html+=`</div>
-    <div class="swipe-hint">← Geser atau ketuk untuk navigasi →</div>
-  </div>`;
+
+  html+=`</div>`;
+
+  // Audio controls row (hanya jika qari dipilih dan kartu adalah per-ayat)
+  if(fcQariFile && c.sId && c.ayatN){
+    html+=`<div class="fc-audio-row">
+      <button class="fc-audio-btn${isPlaying?' fc-audio-btn-stop':''}" onclick="fcToggleAudio()">
+        ${isPlaying?'⏹ Stop':'▶ Play Qari'}
+      </button>
+      <div class="fc-audio-label">${isPlaying?'Sedang diputar…':'Tap untuk dengar bacaan'}</div>
+    </div>`;
+  }
+
+  html+=`<div class="swipe-hint">${isPlaying?'Navigasi dikunci saat audio berjalan':'← Geser atau ketuk untuk navigasi →'}</div>`;
+
+  // Progress dots
+  const maxDots=Math.min(cards.length,30);
+  if(cards.length>1&&cards.length<=60){
+    html+=`<div class="fc-progress">`;
+    for(let i=0;i<Math.min(cards.length,maxDots);i++){
+      const cl=i===idx?'fc-dot cur':(done.includes(i)?'fc-dot done':'fc-dot');
+      html+=`<div class="${cl}"></div>`;
+    }
+    html+=`</div>`;
+  }
+
+  html+=`<div class="fc-actions">
+    <button class="fc-actions button fc-act-repeat" onclick="fcMark(false)">Ulangi</button>
+    <button class="fc-actions button fc-act-know" onclick="fcMark(true)">Tahu ✓</button>
+  </div></div>`;
   document.getElementById('fc-output').innerHTML=html;
 }
 
-function setFCMode(v){fc.showTr=v;fc.flipped=false;renderFC();}
+function setFCMode(v){fc.showTr=v;fc.flipped=false;_fcStopAudio();renderFC();}
 function flipFC(){fc.flipped=!fc.flipped;renderFC();}
-function fcNext(){fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;renderFC();}
-function fcPrev(){fc.idx=(fc.idx-1+fc.cards.length)%fc.cards.length;fc.flipped=false;renderFC();}
+function fcNext(){
+  if(_fcAudio && !_fcAudio.paused) return; // lock saat audio
+  _fcStopAudio();
+  fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;renderFC();
+}
+function fcPrev(){
+  if(_fcAudio && !_fcAudio.paused) return; // lock saat audio
+  _fcStopAudio();
+  fc.idx=(fc.idx-1+fc.cards.length)%fc.cards.length;fc.flipped=false;renderFC();
+}
 function fcMark(know){
+  if(_fcAudio && !_fcAudio.paused) return;
+  _fcStopAudio();
   if(know&&!fc.done.includes(fc.idx)) fc.done.push(fc.idx);
   else fc.done=fc.done.filter(d=>d!==fc.idx);
   fc.idx=(fc.idx+1)%fc.cards.length;fc.flipped=false;
@@ -1493,7 +1577,6 @@ function fcMark(know){
 }
 let _fcTouchHandled=false;
 function fcClick(e){
-  // Only handle mouse clicks (not touch, which is handled by fcTouch)
   if(_fcTouchHandled){_fcTouchHandled=false;return;}
   flipFC();
 }
@@ -1507,10 +1590,10 @@ function fcTouch(e){
     const dy=ev.changedTouches[0].clientY-startY;
     _fcTouchHandled=true;
     if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)){
-      // swipe navigasi
+      // swipe — lock jika audio sedang berjalan
+      if(_fcAudio && !_fcAudio.paused) return;
       if(dx<0)fcNext();else fcPrev();
     } else if(Math.abs(dx)<10&&Math.abs(dy)<10){
-      // single tap — langsung balik
       flipFC();
     }
   };
@@ -1770,7 +1853,64 @@ function playAyatAudio(numEl) {
 }
 
 
-// ── Player Bar ─────────────────────────────────────────────────────────────
+// ── Flashcard Audio ─────────────────────────────────────────────────────────
+let _fcAudio = null;
+
+function _fcStopAudio(){
+  if(_fcAudio){
+    _fcAudio.pause();
+    _fcAudio.src='';
+    _fcAudio=null;
+  }
+}
+
+function onFcQariChange(){
+  _fcStopAudio();
+  const file=(document.getElementById('fc-qari')||{}).value||'';
+  if(file) _loadRecitationData(file,()=>{});
+  renderFC();
+}
+
+function fcToggleAudio(){
+  if(_fcAudio && !_fcAudio.paused){
+    _fcStopAudio();
+    renderFC();
+    return;
+  }
+  const c = fc.cards[fc.idx];
+  if(!c || !c.sId || !c.ayatN) return;
+  const file=(document.getElementById('fc-qari')||{}).value||'';
+  if(!file) return;
+  const key = c.sId + ':' + c.ayatN;
+
+  _fcStopAudio();
+
+  _loadRecitationData(file, function(data){
+    const entry = data[key];
+    if(!entry || !entry.audio_url){ renderFC(); return; }
+
+    const audio = new Audio(entry.audio_url);
+    _fcAudio = audio;
+
+    audio.addEventListener('loadedmetadata',()=>{
+      audio.currentTime=0;
+      audio.play().catch(()=>{ _fcAudio=null; renderFC(); });
+      renderFC(); // update UI ke "Sedang diputar"
+    });
+
+    audio.addEventListener('ended',()=>{
+      _fcAudio=null;
+      renderFC(); // update UI kembali normal
+    });
+
+    audio.addEventListener('error',()=>{
+      _fcAudio=null;
+      renderFC();
+    });
+  });
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 let _playerSurah = 0;    // surah index aktif
 let _playerAyat  = 0;    // ayat number aktif
 let _playerAuto  = false;
