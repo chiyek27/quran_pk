@@ -291,12 +291,12 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
     <div class="header-icon">📖</div>
   </div>
   <div class="tabs">
-    <div class="tab active" id="tab-baca" onclick="switchTab('baca')">Baca <span class="tab-chevron open" id="chv-baca">▲</span></div>
+    <div class="tab active" id="tab-baca" onclick="switchTab('baca')">Baca <span class="tab-chevron" id="chv-baca">▲</span></div>
     <div class="tab" id="tab-latihan" onclick="switchTab('latihan')">Latihan <span class="tab-chevron" id="chv-latihan">▲</span></div>
     <div class="tab" id="tab-flashcard" onclick="switchTab('flashcard')">Flashcard <span class="tab-chevron" id="chv-flashcard">▲</span></div>
   </div>
   <div class="content" id="content-baca">
-    <div id="baca-settings-body" class="settings-body open">
+    <div id="baca-settings-body" class="settings-body">
     <div id="baca-settings" class="settings-card">
       <div class="settings-row">
         <label>Surat</label>
@@ -947,8 +947,6 @@ updateFcJumlah();
 
 updateAyatRange();
 updateLatRange();
-document.getElementById('baca-settings-body').classList.add('open');
-document.getElementById('chv-baca').classList.add('open');
 renderBaca();
 </script>
 </html>
