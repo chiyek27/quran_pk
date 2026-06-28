@@ -1475,14 +1475,15 @@ function switchTab(t){
     return;
   }
   activeTab=t;
-  const tabsEl=document.querySelector('.tabs');
-  if(tabsEl){
-    window.scrollTo({top:tabsEl.offsetTop,behavior:'smooth'});
-  }
   ['baca','latihan','flashcard'].forEach(x=>{
     document.getElementById('content-'+x).style.display=x===t?'block':'none';
     document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
   });
+  const prefix=getPrefix(t);
+  const body=document.getElementById(prefix+'-settings-body');
+  if(body && !body.classList.contains('open')){
+    body.classList.add('open');
+  }
   ['baca','latihan','flashcard'].forEach(x=>{
     const chv=document.getElementById('chv-'+x);
     if(!chv) return;
@@ -1492,6 +1493,10 @@ function switchTab(t){
       chv.classList.toggle('open',isOpen);
     }
   });
+  const tabsEl=document.querySelector('.tabs');
+  if(tabsEl){
+    window.scrollTo({top:tabsEl.offsetTop,behavior:'smooth'});
+  }
 }
 
 let activeTab='baca';
