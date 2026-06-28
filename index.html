@@ -361,6 +361,12 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   border-radius:3px;
   color:var(--c-text);
 }
+.tafsir-text.id.tts-active{
+  background:var(--c-green-light);
+  border-radius:4px;
+  padding:2px 4px;
+  color:var(--c-text);
+}
 .tts-id-word{
   display:inline;border-radius:3px;
   transition:background .1s;
@@ -684,6 +690,63 @@ function _setActive(elOrNull, cls){
   if(elOrNull) elOrNull.classList.add(c);
 }
 
+function _hasBoundary(){
+  // Chrome Android does not fire onboundary; detect via a quick test
+  // We use a flag set on first successful boundary event
+  return _boundarySupported;
+}
+let _boundarySupported = false;
+
+function _wordHighlighter(wordSpans, utt, cleanText){
+  // Try onboundary first; fall back to timer-based on first utterance
+  let timerFallback = null;
+
+  utt.onboundary = e => {
+    if(e.name !== 'word') return;
+    _boundarySupported = true;
+    if(timerFallback){ clearInterval(timerFallback); timerFallback = null; }
+    wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+    let offset = 0;
+    for(let i = 0; i < wordSpans.length; i++){
+      const wlen = wordSpans[i].dataset.w.length + 1;
+      if(e.charIndex >= offset && e.charIndex < offset + wlen){
+        wordSpans[i].classList.add('tts-word-active');
+        break;
+      }
+      offset += wlen;
+    }
+  };
+
+  // Timer fallback — fires after short delay if no boundary event received
+  let wordIdx = 0;
+  const totalWords = wordSpans.length;
+  // Estimate avg word duration from rate; rough: ~250ms per word at rate 0.8-0.9
+  const avgMs = Math.round(60000 / (220 * (utt.rate || 0.9)));
+
+  const startFallback = () => {
+    if(_boundarySupported) return;
+    wordIdx = 0;
+    timerFallback = setInterval(() => {
+      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+      if(wordIdx < totalWords){
+        wordSpans[wordIdx].classList.add('tts-word-active');
+        wordIdx++;
+      } else {
+        clearInterval(timerFallback);
+      }
+    }, avgMs);
+  };
+
+  // Give boundary 300ms to fire; if not, start timer
+  const gateTimer = setTimeout(startFallback, 300);
+
+  return () => {
+    clearTimeout(gateTimer);
+    if(timerFallback){ clearInterval(timerFallback); timerFallback = null; }
+    wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+  };
+}
+
 function speakAr(text, blockEl){
   if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
@@ -694,29 +757,12 @@ function speakAr(text, blockEl){
   const femaleArKw=['female','woman','samira','laila','zira'];
   utt.voice=_pickVoice('ar', null, femaleArKw);
 
-  // word-level highlight for tafsir AR spans
   const wordSpans = blockEl && blockEl.classList.contains('tafsir-ar-span')
     ? blockEl.querySelectorAll('.tafsir-ar-word') : null;
 
   if(wordSpans && wordSpans.length){
-    utt.onboundary = e => {
-      if(e.name !== 'word') return;
-      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
-      // find which word span matches charIndex
-      let offset = 0;
-      for(let i = 0; i < wordSpans.length; i++){
-        const wlen = wordSpans[i].dataset.w.length + 1; // +1 for space
-        if(e.charIndex >= offset && e.charIndex < offset + wlen){
-          wordSpans[i].classList.add('tts-word-active');
-          break;
-        }
-        offset += wlen;
-      }
-    };
-    utt.onend = () => {
-      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
-      _setActive(null,'tts-active');
-    };
+    const cleanup = _wordHighlighter(wordSpans, utt, text);
+    utt.onend = () => { cleanup(); _setActive(null,'tts-active'); };
     _setActive(blockEl,'tts-active');
   } else {
     utt.onend=()=>_setActive(null,'tts-active');
@@ -739,23 +785,8 @@ function speakId(text, blockEl){
 
   const wordSpans = blockEl && blockEl.querySelectorAll('.tts-id-word');
   if(wordSpans && wordSpans.length){
-    utt.onboundary = e => {
-      if(e.name !== 'word') return;
-      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
-      let offset = 0;
-      for(let i = 0; i < wordSpans.length; i++){
-        const wlen = wordSpans[i].dataset.w.length + 1;
-        if(e.charIndex >= offset && e.charIndex < offset + wlen){
-          wordSpans[i].classList.add('tts-word-active');
-          break;
-        }
-        offset += wlen;
-      }
-    };
-    utt.onend = () => {
-      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
-      _setActive(null,'tts-active');
-    };
+    const cleanup = _wordHighlighter(wordSpans, utt, clean);
+    utt.onend = () => { cleanup(); _setActive(null,'tts-active'); };
     _setActive(blockEl,'tts-active');
   } else {
     utt.onend=()=>_setActive(null,'tts-active');
