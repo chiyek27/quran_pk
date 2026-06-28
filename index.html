@@ -138,7 +138,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 .surah-name-ar{font-size:30px;font-family:'Conv_original-hafs';margin-bottom:6px;line-height:1.4}
 .surah-name-id{font-size:13px;opacity:.85;letter-spacing:.02em}
 .bismillah{
-  text-align:center;font-size:24px;font-family:"Conv_original-hafs";
+  text-align:center;font-size:24px;font-family:'Conv_original-hafs';
   color:var(--c-gold);padding:14px 0 10px;direction:rtl;line-height:1.7;
 }
 
@@ -186,7 +186,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   background:var(--c-green-light);border-color:var(--c-green);
   transform:scale(.95);
 }
-.kata-ar{font-family:"Conv_original-hafs";font-size:26px;color:var(--c-text);direction:rtl;line-height:1.5}
+.kata-ar{font-family:'Conv_original-hafs';font-size:26px;color:var(--c-text);direction:rtl;line-height:1.5}
 .kata-tr{font-size:11px;color:var(--c-muted);margin-top:4px;direction:ltr;line-height:1.3}
 
 /* ── Flashcard ── */
@@ -219,10 +219,10 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 }
 .flashcard:active{transform:scale(.98)}
 .fc-front,.fc-back{text-align:center;width:100%}
-.fc-ar{font-family:"Conv_original-hafs";font-size:42px;color:var(--c-text);direction:rtl;line-height:1.5}
+.fc-ar{font-family:'Conv_original-hafs';font-size:42px;color:var(--c-text);direction:rtl;line-height:1.5}
 .fc-hint{font-size:12px;color:var(--c-muted);margin-top:14px;letter-spacing:.02em}
 .fc-tr-big{font-size:20px;font-weight:600;color:var(--c-green);margin-bottom:8px;line-height:1.4}
-.fc-ar-sm{font-family:"Conv_original-hafs";font-size:26px;color:var(--c-muted);direction:rtl}
+.fc-ar-sm{font-family:'Conv_original-hafs';font-size:26px;color:var(--c-muted);direction:rtl}
 .fc-surah{font-size:12px;color:var(--c-muted);margin-top:10px}
 .swipe-hint{font-size:11px;color:var(--c-muted);text-align:center;margin-top:10px;opacity:.7}
 .fc-progress{display:flex;gap:4px;flex-wrap:wrap;margin-top:14px;justify-content:center}
@@ -481,7 +481,7 @@ function renderBaca(){
   const to=+document.getElementById('ayat-to').value;
   const ayats=s.ayat.filter(a=>a.n>=fr&&a.n<=to);
   let html=`<div class="surah-header">
-    <div class="surah-name-ar" style="font-family:"Conv_original-hafs"">${s.name}</div>
+    <div class="surah-name-ar" style="font-family:'Conv_original-hafs'">${s.name}</div>
     <div class="surah-name-id">${sId}. ${s.name} — ${s.id} · ${s.jml} Ayat</div>
   </div>`;
   if(fr===1&&sId!==9) html+=`<div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
@@ -629,7 +629,7 @@ function renderLatihan(){
   choices.forEach((c,i)=>{
     const isAr=mode==='tr2ar';
     html+=`<button onclick="checkAnswer(${i},'${encodeURIComponent(c)}','${encodeURIComponent(A)}')" 
-      class="lat-choice-btn" style="${isAr?'font-family:"Conv_original-hafs";font-size:20px;direction:rtl':'font-size:13px'}" id="choice-${i}">
+      class="lat-choice-btn" style="${isAr?'font-family:'Conv_original-hafs';font-size:20px;direction:rtl':'font-size:13px'}" id="choice-${i}">
       ${c}</button>`;
   });
   html+=`</div>`;
