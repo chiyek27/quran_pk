@@ -273,7 +273,42 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 
 .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--c-green-light);color:var(--c-green);margin:2px}
 
-/* ── Catatan Kaki ── */
+/* ── Player Bar ── */
+#player-bar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;
+  background:var(--c-bg);
+  border-top:1px solid var(--c-border);
+  box-shadow:0 -2px 12px rgba(0,0,0,.10);
+  padding:10px 16px 12px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  z-index:100;
+  transition:transform .25s ease;
+}
+#player-bar.hidden{transform:translateX(-50%) translateY(100%)}
+.player-info{
+  display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;
+}
+.player-surah{font-size:13px;font-weight:600;color:var(--c-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-ayat-label{font-size:11px;color:var(--c-muted)}
+.player-controls{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.player-btn{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--c-border);
+  background:var(--c-surface);color:var(--c-text);
+  font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s,border-color .12s,transform .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.player-btn:active{transform:scale(.92)}
+.player-btn-main{
+  width:46px;height:46px;font-size:18px;
+  background:var(--c-green);color:#fff;border-color:var(--c-green);
+}
+.player-btn-main.playing{background:var(--c-green)}
+.player-btn-auto{font-size:16px}
+.player-btn-auto.on{background:var(--c-green);color:#fff;border-color:var(--c-green)}
+
 .fn-block{
   margin-top:8px;border-top:1px dashed var(--c-border);
   padding-top:8px;
@@ -584,6 +619,19 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
     </div><!-- /fc-settings-body -->
     <div id="fc-output"></div>
   </div>
+<!-- ── Player Bar ── -->
+<div id="player-bar" style="display:none">
+  <div class="player-info">
+    <span class="player-surah" id="player-surah-name"></span>
+    <span class="player-ayat-label" id="player-ayat-label"></span>
+  </div>
+  <div class="player-controls">
+    <button class="player-btn" id="player-prev" onclick="playerPrev()" title="Ayat sebelumnya">&#9664;&#9664;</button>
+    <button class="player-btn player-btn-main" id="player-play" onclick="playerPlayPause()" title="Play/Pause">&#9654;</button>
+    <button class="player-btn" id="player-next" onclick="playerNext()" title="Ayat berikutnya">&#9654;&#9654;</button>
+    <button class="player-btn player-btn-auto" id="player-auto" onclick="playerToggleAuto()" title="Auto-play">&#8635;</button>
+  </div>
+</div>
 </div>
 
 <script src="quran_data_20260603.js"></script>
@@ -1721,8 +1769,231 @@ function playAyatAudio(numEl) {
   });
 }
 
-// Preload qari default di background setelah halaman siap
-setTimeout(() => { const f = _currentQariFile(); if (f) _loadRecitationData(f, () => {}); }, 1500);
+
+// ── Player Bar ─────────────────────────────────────────────────────────────
+let _playerSurah = 0;    // surah index aktif
+let _playerAyat  = 0;    // ayat number aktif
+let _playerAuto  = false;
+let _playerPlaying = false;
+
+function _playerGetAyatList(){
+  const sId = _playerSurah;
+  const s = DATA[sId];
+  if(!s) return [];
+  const fr = +document.getElementById('ayat-from').value || 1;
+  const to = +document.getElementById('ayat-to').value  || s.jml;
+  return s.ayat.filter(a=>a.n>=fr && a.n<=to).map(a=>a.n);
+}
+
+function _playerUpdateUI(){
+  const bar = document.getElementById('player-bar');
+  const s = DATA[_playerSurah];
+  if(!s || !_playerSurah){ bar.style.display='none'; return; }
+  bar.style.display='flex';
+  document.getElementById('player-surah-name').textContent = s.name;
+  document.getElementById('player-ayat-label').textContent = 'Ayat ' + _playerAyat;
+  // play/pause icon
+  const playBtn = document.getElementById('player-play');
+  playBtn.innerHTML = _playerPlaying ? '&#9646;&#9646;' : '&#9654;';
+  playBtn.classList.toggle('playing', _playerPlaying);
+  // auto btn
+  document.getElementById('player-auto').classList.toggle('on', _playerAuto);
+  // prev/next disabled state
+  const list = _playerGetAyatList();
+  const idx = list.indexOf(_playerAyat);
+  document.getElementById('player-prev').disabled = idx <= 0;
+  document.getElementById('player-next').disabled = idx < 0 || idx >= list.length - 1;
+}
+
+function _playerScrollToAyat(){
+  // Scroll ayat yang sedang diputar ke tengah layar
+  const ayats = document.querySelectorAll('.ayat-block');
+  const list = _playerGetAyatList();
+  const idx = list.indexOf(_playerAyat);
+  if(ayats[idx]){
+    ayats[idx].scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
+
+function _playerPlayCurrent(){
+  _stopRecAudio();
+  _playerPlaying = false;
+  _playerUpdateUI();
+
+  const file = _currentQariFile();
+  if(!file){ _playerPlaying = false; _playerUpdateUI(); return; }
+
+  const sId = _playerSurah;
+  const ayatN = _playerAyat;
+  const key = sId + ':' + ayatN;
+
+  // Highlight nomor ayat di kata-grid
+  const numEl = document.querySelector(`.kata-item-num[data-sidx="${sId}"][data-ayat="${ayatN}"]`);
+
+  _loadRecitationData(file, function(data){
+    const entry = data[key];
+    if(!entry || !entry.segments || !entry.segments.length){
+      // Tidak ada data audio untuk ayat ini, skip ke berikutnya jika auto
+      _playerPlaying = false;
+      _playerUpdateUI();
+      if(_playerAuto) setTimeout(playerNext, 800);
+      return;
+    }
+
+    const segments = entry.segments;
+    let kataItems = [];
+    if(numEl){
+      const grid = numEl.parentElement;
+      kataItems = Array.from(grid.querySelectorAll('.kata-item:not(.kata-item-num)'));
+      _recActiveEl = numEl;
+      numEl.classList.add('tts-active');
+    }
+
+    const audio = new Audio(entry.audio_url);
+    _recAudio = audio;
+    _playerPlaying = true;
+    _playerUpdateUI();
+    let activeSegIdx = -1;
+
+    audio.addEventListener('loadedmetadata', ()=>{
+      audio.currentTime = 0;
+      audio.play().catch(()=>{ _playerPlaying=false; _playerUpdateUI(); });
+    });
+
+    audio.addEventListener('timeupdate', ()=>{
+      const nowMs = audio.currentTime * 1000;
+      let newSeg = -1;
+      for(let i=0;i<segments.length;i++){
+        if(nowMs>=segments[i][1] && nowMs<segments[i][2]){newSeg=i;break;}
+      }
+      if(newSeg !== activeSegIdx){
+        activeSegIdx = newSeg;
+        kataItems.forEach(el=>el.classList.remove('tts-active'));
+        if(newSeg>=0){
+          const wi = segments[newSeg][0]-1;
+          if(kataItems[wi]) kataItems[wi].classList.add('tts-active');
+        }
+      }
+    });
+
+    audio.addEventListener('ended', ()=>{
+      _clearRecActive();
+      _recAudio = null;
+      _playerPlaying = false;
+      _playerUpdateUI();
+      if(_playerAuto) setTimeout(playerNext, 600);
+    });
+
+    audio.addEventListener('error', ()=>{
+      _playerPlaying = false;
+      _playerUpdateUI();
+      _stopRecAudio();
+    });
+  });
+}
+
+// Dipanggil dari playAyatAudio agar player bar sinkron
+function _playerSyncFrom(sId, ayatN){
+  _playerSurah = sId;
+  _playerAyat  = ayatN;
+  _playerPlaying = true;
+  _playerUpdateUI();
+}
+
+function playerPlayPause(){
+  if(_playerPlaying){
+    _stopRecAudio();
+    _playerPlaying = false;
+    _playerUpdateUI();
+  } else {
+    if(!_playerSurah){
+      // Ambil dari setting baca saat ini
+      _playerSurah = +document.getElementById('sel-surah').value;
+      const list = _playerGetAyatList();
+      _playerAyat = list[0] || 1;
+    }
+    _playerScrollToAyat();
+    _playerPlayCurrent();
+  }
+}
+
+function playerPrev(){
+  const list = _playerGetAyatList();
+  const idx = list.indexOf(_playerAyat);
+  if(idx > 0){
+    _playerAyat = list[idx-1];
+    _playerScrollToAyat();
+    _playerPlayCurrent();
+  }
+}
+
+function playerNext(){
+  const list = _playerGetAyatList();
+  const idx = list.indexOf(_playerAyat);
+  if(idx >= 0 && idx < list.length-1){
+    _playerAyat = list[idx+1];
+    _playerScrollToAyat();
+    _playerPlayCurrent();
+  } else {
+    _playerPlaying = false;
+    _playerAuto = false;
+    _playerUpdateUI();
+  }
+}
+
+function playerToggleAuto(){
+  _playerAuto = !_playerAuto;
+  _playerUpdateUI();
+}
+
+// Patch playAyatAudio agar sinkron dengan player bar
+const _origPlayAyatAudio = playAyatAudio;
+playAyatAudio = function(numEl){
+  _playerSurah = +numEl.dataset.sidx;
+  _playerAyat  = +numEl.dataset.ayat;
+  _origPlayAyatAudio(numEl);
+  // Sinkron state setelah audio dimulai
+  setTimeout(()=>{
+    _playerPlaying = !!_recAudio;
+    _playerUpdateUI();
+  }, 200);
+};
+
+// Tampilkan player bar saat tab baca aktif dan ada qari dipilih
+function _playerCheckShow(){
+  const file = _currentQariFile();
+  const bar = document.getElementById('player-bar');
+  if(!file || activeTab !== 'baca'){ bar.style.display='none'; return; }
+  // Inisialisasi surah/ayat dari setting jika belum ada
+  if(!_playerSurah){
+    _playerSurah = +document.getElementById('sel-surah').value;
+    const list = _playerGetAyatList();
+    _playerAyat = list[0] || 1;
+  }
+  _playerUpdateUI();
+}
+
+// Jalankan cek ketika qari berubah atau tab berubah
+const _origOnQariChange = onQariChange;
+onQariChange = function(){
+  _origOnQariChange();
+  setTimeout(_playerCheckShow, 100);
+};
+
+// Patch renderBaca agar player bar update posisi ayat
+const _origRenderBaca = renderBaca;
+renderBaca = function(){
+  _origRenderBaca();
+  _playerSurah = +document.getElementById('sel-surah').value;
+  const list = _playerGetAyatList();
+  if(!list.includes(_playerAyat)) _playerAyat = list[0] || 1;
+  _playerCheckShow();
+};
+
+// Tampilkan player bar setelah init
+setTimeout(_playerCheckShow, 1600);
+// ───────────────────────────────────────────────────────────────────────────
+
 // ────────────────────────────────────────────────────────────────────────────
 </script>
 </html>
