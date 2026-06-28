@@ -773,9 +773,9 @@ function _wordHighlighter(wordSpans, utt, cleanText){
   const rate = utt.rate || 0.9;
   // Gunakan nilai kalibrasi jika sudah tersedia, fallback ke estimasi konservatif.
   // _calibratedCPS diukur dari durasi TTS aktual pada device ini.
-  const charsPerSec = (_calibratedCPS || 5) * rate;
-  const minWordMs = 180;  // floor per word — kata pendek tetap terlihat
-  const minSegMs  = 900;  // minimum total ms per segmen (jeda tanda baca yang terasa)
+  const charsPerSec = (_calibratedCPS || 3) * rate;
+  const minWordMs = 250;  // floor per word — kata pendek tetap terlihat
+  const minSegMs  = 1200;  // minimum total ms per segmen (jeda tanda baca yang terasa)
 
   const groups = _groupByPunctuation(wordSpans);
 
