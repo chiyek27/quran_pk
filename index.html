@@ -744,9 +744,11 @@ function _wordHighlighter(wordSpans, utt, cleanText){
   //            bonusMs = pauseMs / groupLen         <- split evenly to each word
   // Final per word delay = baseMs + bonusMs
   const rate = utt.rate || 0.9;
-  const charsPerSec = 14 * rate;
-  const minWordMs = 100;  // floor per word (short words like "di","dan" still visible)
-  const minSegMs  = 350;  // minimum total ms per segment (punctuation pause budget)
+  // Android TTS lebih lambat dari estimasi — turunkan charsPerSec agar highlight
+  // tidak mendahului suara. ~7 char/sec lebih realistis untuk id-ID/ar-SA di Android.
+  const charsPerSec = 7 * rate;
+  const minWordMs = 180;  // floor per word — kata pendek tetap terlihat
+  const minSegMs  = 800;  // minimum total ms per segmen (jeda tanda baca yang terasa)
 
   const groups = _groupByPunctuation(wordSpans);
 
