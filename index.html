@@ -307,6 +307,47 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   color:var(--c-text);
 }
 .fn-text.open{display:block}
+
+/* ── Tafsir ── */
+.tafsir-block{
+  margin-top:8px;border-top:1px dashed var(--c-border);
+  padding-top:8px;
+}
+.tafsir-toggle{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:500;
+  cursor:pointer;user-select:none;padding:2px 0;
+}
+.tafsir-toggle.ar{color:#7a5a00}
+.tafsir-toggle.id{color:var(--c-green)}
+.tafsir-toggle-icon{font-size:10px;transition:transform .2s;display:inline-block}
+.tafsir-toggle.open .tafsir-toggle-icon{transform:rotate(180deg)}
+.tafsir-text{
+  display:none;margin-top:6px;font-size:13px;
+  line-height:1.75;white-space:pre-line;
+}
+.tafsir-text.ar{
+  direction:rtl;font-family:'Amiri',serif;font-size:16px;
+  color:var(--c-text);
+}
+.tafsir-text.id{color:var(--c-muted)}
+.tafsir-text.open{display:block}
+
+/* ── Settings: tafsir section divider ── */
+.settings-section-label{
+  padding:7px 14px 5px;
+  font-size:11px;font-weight:600;
+  color:var(--c-muted);
+  letter-spacing:.06em;text-transform:uppercase;
+  border-bottom:1px solid var(--c-border);
+  background:var(--c-surface);
+}
+.lang-badge{
+  font-size:10px;padding:2px 7px;border-radius:10px;
+  font-weight:600;flex-shrink:0;display:inline-block;
+}
+.badge-ar{background:#FFF8E1;color:#7a5a00;border:1px solid #e8c84a}
+.badge-id{background:var(--c-green-light);color:var(--c-green);border:1px solid #9FE1CB}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
@@ -359,6 +400,27 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         <div class="toggle-group">
           <div class="tgl on" id="tgl-fn" onclick="toggleFn()">Tampilkan</div>
         </div>
+      </div>
+
+      <div class="settings-section-label">Tafsir</div>
+
+      <div class="settings-row">
+        <label><span class="lang-badge badge-ar">AR</span>&nbsp;Tafsir Arab</label>
+        <select id="sel-tafsir-ar" onchange="onTafsirChange('ar')" style="max-width:160px">
+          <option value="">— Tidak tampilkan —</option>
+          <option value="ar-tafsir-as-saadi.json">As-Sa'di</option>
+          <option value="ar-tafsir-jalalayn.json">Al-Jalalayn</option>
+          <option value="ar-tafsir-mukhtasar.json">Mukhtasar</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <label><span class="lang-badge badge-id">ID</span>&nbsp;Tafsir Indonesia</label>
+        <select id="sel-tafsir-id" onchange="onTafsirChange('id')" style="max-width:160px">
+          <option value="">— Tidak tampilkan —</option>
+          <option value="id-tafsir-as-saadi.json">As-Sa'di</option>
+          <option value="id-tafsir-jalalayn.json">Al-Jalalayn</option>
+          <option value="id-tafsir-mukhtasar.json">Mukhtasar</option>
+        </select>
       </div>
 
     </div>
@@ -627,6 +689,73 @@ function toArabicNum(n){
   return String(n).split('').map(d=>'٠١٢٣٤٥٦٧٨٩'[+d]).join('');
 }
 
+// ── Tafsir ──────────────────────────────────────────────
+// Cache: {filename: data_object | 'loading' | 'error'}
+const tafsirCache = {};
+
+// Active selections
+let tafsirArFile = '';
+let tafsirIdFile = '';
+
+function onTafsirChange(lang) {
+  const file = document.getElementById('sel-tafsir-' + lang).value;
+  if (lang === 'ar') tafsirArFile = file;
+  else tafsirIdFile = file;
+
+  if (file && !tafsirCache[file]) {
+    tafsirCache[file] = 'loading';
+    fetch(file)
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(data => { tafsirCache[file] = data; renderBaca(); })
+      .catch(() => { tafsirCache[file] = 'error'; renderBaca(); });
+  }
+  renderBaca();
+}
+
+function toggleTafsirItem(id, lang) {
+  const el = document.getElementById('tafsir-text-' + lang + '-' + id);
+  const tog = document.getElementById('tafsir-tog-' + lang + '-' + id);
+  if (!el) return;
+  const open = el.classList.toggle('open');
+  tog.classList.toggle('open', open);
+}
+
+function buildTafsirBlock(sId, ayatN, lang, file) {
+  if (!file) return '';
+  const cache = tafsirCache[file];
+  const key = sId + ':' + ayatN;
+  const langClass = lang; // 'ar' or 'id'
+  const icon = lang === 'ar' ? '📖' : '📝';
+  const label = lang === 'ar' ? 'Tafsir Arab' : 'Tafsir Indonesia';
+  const id = sId + '-' + ayatN;
+
+  let bodyHtml = '';
+  if (!cache || cache === 'loading') {
+    bodyHtml = `<div class="tafsir-text ${langClass} open" style="font-size:12px;color:var(--c-muted)">Memuat tafsir…</div>`;
+  } else if (cache === 'error') {
+    bodyHtml = `<div class="tafsir-text ${langClass} open" style="font-size:12px;color:var(--c-muted)">Gagal memuat tafsir.</div>`;
+  } else {
+    // Resolve pointer (some entries are string refs to another key)
+    let entry = cache[key];
+    if (typeof entry === 'string') entry = cache[entry];
+    if (!entry || !entry.text) return '';
+    const safe = entry.text.replace(/"/g, '&quot;');
+    bodyHtml = `<div class="tafsir-text ${langClass}" id="tafsir-text-${langClass}-${id}"
+      onclick="speakId(this.innerText,this)"
+      >${entry.text}</div>`;
+  }
+
+  return `<div class="tafsir-block">
+    <div class="tafsir-toggle ${langClass}" id="tafsir-tog-${langClass}-${id}"
+      onclick="toggleTafsirItem('${id}','${langClass}')">
+      <span>${icon} ${label}</span>
+      <span class="tafsir-toggle-icon">▼</span>
+    </div>
+    ${bodyHtml}
+  </div>`;
+}
+// ────────────────────────────────────────────────────────
+
 function renderBaca(){
   const sId=+document.getElementById('sel-surah').value;
   const s=DATA[sId];
@@ -680,6 +809,8 @@ function renderBaca(){
           }</div>
         </div>`;
       }
+      html += buildTafsirBlock(sId, a.n, 'ar', tafsirArFile);
+      html += buildTafsirBlock(sId, a.n, 'id', tafsirIdFile);
       html+=`</div>`;
     });
   }
