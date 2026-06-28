@@ -1470,42 +1470,11 @@ function fcTouch(e){
 }
 
 function switchTab(t){
-  const tabsEl=document.querySelector('.tabs');
-  const scrollToTabsThen=(cb)=>{
-    if(!tabsEl) { cb(); return; }
-    const tabsTop = tabsEl.getBoundingClientRect().top + window.scrollY;
-    const currentScroll = window.scrollY;
-    // Jika sudah dekat dengan tabs (dalam 10px), langsung jalankan cb
-    if(Math.abs(currentScroll - tabsTop) < 10){
-      cb(); return;
+  function applyTab(){
+    if(activeTab===t){
+      toggleActiveSettings();
+      return;
     }
-    // Scroll ke posisi tabs, lalu jalankan cb setelah selesai
-    window.scrollTo({top: tabsTop, behavior:'smooth'});
-    let done = false;
-    const onScroll = ()=>{
-      if(done) return;
-      // Deteksi scroll selesai
-      clearTimeout(window._switchTabTimer);
-      window._switchTabTimer = setTimeout(()=>{
-        if(done) return;
-        done = true;
-        window.removeEventListener('scroll', onScroll);
-        cb();
-      }, 80);
-    };
-    window.addEventListener('scroll', onScroll, {passive:true});
-    // Fallback: jalankan cb setelah 600ms jika scroll belum memicu event
-    setTimeout(()=>{ if(!done){ done=true; window.removeEventListener('scroll',onScroll); cb(); } }, 600);
-  };
-
-  if(activeTab===t){
-    // Tab yang sama diklik: toggle settings, scroll ke tabs dulu jika jauh
-    scrollToTabsThen(()=>toggleActiveSettings());
-    return;
-  }
-
-  // Pindah tab: scroll ke tabs dulu, lalu switch konten & buka settings
-  scrollToTabsThen(()=>{
     activeTab=t;
     ['baca','latihan','flashcard'].forEach(x=>{
       document.getElementById('content-'+x).style.display=x===t?'block':'none';
@@ -1525,7 +1494,31 @@ function switchTab(t){
         chv.classList.toggle('open',isOpen);
       }
     });
-  });
+  }
+
+  // Jika sudah di atas (dalam 60px dari top), langsung apply
+  if(window.scrollY < 60){
+    applyTab();
+    return;
+  }
+
+  // Scroll smooth ke paling atas dulu, baru apply tab setelah sampai
+  window.scrollTo({top:0, behavior:'smooth'});
+  let done=false;
+  function onScroll(){
+    clearTimeout(window._tabScrollTimer);
+    window._tabScrollTimer=setTimeout(()=>{
+      if(done) return;
+      done=true;
+      window.removeEventListener('scroll', onScroll);
+      applyTab();
+    }, 100);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  // Fallback jika scroll selesai sangat cepat atau tidak memicu event
+  setTimeout(()=>{
+    if(!done){ done=true; window.removeEventListener('scroll', onScroll); applyTab(); }
+  }, 800);
 }
 
 let activeTab='baca';
