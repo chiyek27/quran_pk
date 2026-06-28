@@ -1105,8 +1105,8 @@ function renderBaca(){
         const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
         if(kataAyat && kataAyat.length){
           html+=`<div class="kata-grid">`;
-          kataAyat.forEach(k=>{
-            html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" onclick="speakAr(this.dataset.ar,this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
+          kataAyat.forEach((k,wi)=>{
+            html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" data-sidx="${sId}" data-ayat="${a.n}" data-widx="${wi+1}" onclick="playKataAudio(this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
           html+=`<div class="kata-item kata-item-num"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
           html+=`</div>`;
@@ -1506,5 +1506,120 @@ toggleFcLevel();
 updateAyatRange();
 updateLatRange();
 renderBaca();
+
+// ── Recitation Audio (Abdul Basit Mujawwad) ─────────────────────────────────
+// JSON dimuat sekali saat pertama kali dibutuhkan, lalu di-cache
+let _recitationData = null;
+let _recitationLoading = false;
+let _recitationCallbacks = [];
+const RECITATION_JSON = 'ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs-949.json';
+
+function _loadRecitationData(cb) {
+  if (_recitationData) { cb(_recitationData); return; }
+  if (cb) _recitationCallbacks.push(cb);
+  if (_recitationLoading) return;
+  _recitationLoading = true;
+  fetch(RECITATION_JSON)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+      _recitationData = data;
+      _recitationLoading = false;
+      _recitationCallbacks.forEach(fn => fn(data));
+      _recitationCallbacks = [];
+    })
+    .catch(err => {
+      console.warn('Recitation JSON gagal dimuat:', err);
+      _recitationLoading = false;
+      _recitationCallbacks = [];
+    });
+}
+
+// Audio instance aktif
+let _recAudio = null;
+let _recHighlightTimer = null;
+let _recActiveEl = null;
+
+function _clearRecActive() {
+  if (_recHighlightTimer) { clearTimeout(_recHighlightTimer); _recHighlightTimer = null; }
+  document.querySelectorAll('.kata-item.tts-active').forEach(el => el.classList.remove('tts-active'));
+  _recActiveEl = null;
+}
+
+function _stopRecAudio() {
+  if (_recAudio) {
+    _recAudio.pause();
+    _recAudio.src = '';
+    _recAudio = null;
+  }
+  _clearRecActive();
+}
+
+// Dipanggil saat kata-item diklik
+// el: elemen .kata-item, data-sidx, data-ayat, data-widx sudah ada
+function playKataAudio(el) {
+  const sId   = el.dataset.sidx;
+  const ayatN = el.dataset.ayat;
+  const wIdx  = parseInt(el.dataset.widx); // 1-based, sesuai JSON segments
+  const key   = sId + ':' + ayatN;
+
+  // Jika elemen yang sama sedang aktif → stop (toggle off)
+  if (_recActiveEl === el) {
+    _stopRecAudio();
+    return;
+  }
+  _stopRecAudio();
+
+  _loadRecitationData(function(data) {
+    const entry = data[key];
+    if (!entry) {
+      // Fallback ke TTS jika data tidak ada di JSON
+      speakAr(el.dataset.ar, el);
+      return;
+    }
+
+    const segments = entry.segments; // [[wordIdx, startMs, endMs], ...]
+    const seg = segments.find(s => s[0] === wIdx);
+    if (!seg) {
+      // Kata ini tidak punya segment → fallback TTS
+      speakAr(el.dataset.ar, el);
+      return;
+    }
+
+    const startMs = seg[1];
+    const endMs   = seg[2];
+    const audioUrl = entry.audio_url;
+
+    el.classList.add('tts-active');
+    _recActiveEl = el;
+
+    const audio = new Audio(audioUrl);
+    _recAudio = audio;
+    audio.preload = 'auto';
+
+    audio.addEventListener('loadedmetadata', function() {
+      audio.currentTime = startMs / 1000;
+      audio.play().catch(e => { console.warn('Audio play error:', e); _stopRecAudio(); });
+    });
+
+    // Monitor: hentikan di akhir segment kata ini
+    audio.addEventListener('timeupdate', function() {
+      if (audio.currentTime * 1000 >= endMs) {
+        audio.pause();
+        _clearRecActive();
+        _recAudio = null;
+      }
+    });
+
+    audio.addEventListener('error', function() {
+      console.warn('Audio error, fallback TTS');
+      _stopRecAudio();
+      speakAr(el.dataset.ar, el);
+    });
+  });
+}
+
+// Preload recitation data di background setelah halaman siap
+setTimeout(() => _loadRecitationData(() => {}), 1500);
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 </html>
