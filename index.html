@@ -771,7 +771,7 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   let gateTimer = null;
 
   const rate = utt.rate || 0.75;
-  const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 1.5 : 2.5));
+  const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 3.0 : 2.5));
   const charsPerSec = baseCPS * rate;
   const minWordMs = 100;
   const maxWordMs = 700;
