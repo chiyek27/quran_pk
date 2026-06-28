@@ -734,7 +734,7 @@ function _groupByPunctuation(wordSpans){
     cur.push(span);
     const w = (span.dataset.w || span.textContent).trim();
     if(anyRe.test(w)){
-      const pauseExtra = heavyRe.test(w) ? 200 : 150;
+      const pauseExtra = heavyRe.test(w) ? 300 : 250;
       groups.push({spans: cur, pauseExtra});
       cur = [];
     }
