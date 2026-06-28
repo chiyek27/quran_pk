@@ -727,17 +727,25 @@ function _startCalibration(utt, textLength){
 // Group wordSpans into punctuation-delimited segments.
 // Each segment = array of spans up to (and including) a span whose word ends with punctuation.
 function _groupByPunctuation(wordSpans){
-  const puncRe = /[.,;:?!،؛؟…]$/;
+  // Returns [{spans, pauseExtra}] where pauseExtra = bonus ms to add AFTER last word of group
+  // Heavy pause: titik, tanda tanya, tanda seru, ellipsis → +800ms
+  // Light pause : koma, titik dua, titik koma → +350ms
+  // No punct    : no extra pause
+  const heavyRe = /[.?!؟…]$/;
+  const lightRe = /[,;:،؛]$/;
+  const anyRe   = /[.,;:?!،؛؟…]$/;
   const groups = [];
   let cur = [];
   wordSpans.forEach(span => {
     cur.push(span);
-    if(puncRe.test((span.dataset.w || span.textContent).trim())){
-      groups.push(cur);
+    const w = (span.dataset.w || span.textContent).trim();
+    if(anyRe.test(w)){
+      const pauseExtra = heavyRe.test(w) ? 800 : 350;
+      groups.push({spans: cur, pauseExtra});
       cur = [];
     }
   });
-  if(cur.length) groups.push(cur);
+  if(cur.length) groups.push({spans: cur, pauseExtra: 0});
   return groups;
 }
 
@@ -773,27 +781,32 @@ function _wordHighlighter(wordSpans, utt, cleanText){
   const rate = utt.rate || 0.9;
   // Gunakan nilai kalibrasi jika sudah tersedia, fallback ke estimasi konservatif.
   // _calibratedCPS diukur dari durasi TTS aktual pada device ini.
-  const charsPerSec = (_calibratedCPS || 3) * rate;
-  const minWordMs = 250;  // floor per word — kata pendek tetap terlihat
-  const minSegMs  = 1200;  // minimum total ms per segmen (jeda tanda baca yang terasa)
+  const charsPerSec = (_calibratedCPS || 2) * rate;
+  const minWordMs = 320;  // floor per word — kata pendek tetap terlihat
+  const minSegMs  = 1400;  // minimum total ms per segmen (jeda tanda baca yang terasa)
 
   const groups = _groupByPunctuation(wordSpans);
 
   // Pre-compute flat delay schedule (one entry per wordSpan).
-  // Selisih antara total segmen dan minSegMs dibagi rata ke semua kata:
-  //   surplus  (total > minSegMs) → tiap kata dikurangi rata
-  //   deficit  (total < minSegMs) → tiap kata ditambah rata
-  // Hasil akhir per kata difloor ke minWordMs agar tidak ada kata yang hilang terlalu cepat.
+  // Setiap segmen (antar tanda baca):
+  //   1. Hitung baseMs per kata dari panjang karakter
+  //   2. Ratakan selisih vs minSegMs ke semua kata (surplus dikurangi, deficit ditambah)
+  //   3. Kata TERAKHIR di grup mendapat tambahan pauseExtra (jeda tanda baca)
+  //      - titik / ? / ! / … → +800ms
+  //      - koma / ; / :      → +350ms
   const schedule = [];
-  groups.forEach(group => {
+  groups.forEach(({spans: group, pauseExtra}) => {
     const bases = group.map(s => {
       const w = s.dataset.w || s.textContent;
       return Math.max(minWordMs, Math.round((w.length / charsPerSec) * 1000));
     });
     const segMs = bases.reduce((a, b) => a + b, 0);
-    // selisih positif = surplus (terlalu lama), negatif = deficit (terlalu cepat)
     const adjustPerWord = Math.round((minSegMs - segMs) / group.length);
-    bases.forEach(b => schedule.push(Math.max(minWordMs, b + adjustPerWord)));
+    bases.forEach((b, i) => {
+      const isLast = (i === bases.length - 1);
+      const delay = Math.max(minWordMs, b + adjustPerWord) + (isLast ? pauseExtra : 0);
+      schedule.push(delay);
+    });
   });
 
   const startFallback = () => {
