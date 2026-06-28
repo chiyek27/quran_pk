@@ -699,25 +699,28 @@ let _boundarySupported = false;
 
 // Auto-calibration: ukur charsPerSec aktual dari TTS pertama yang selesai.
 // Disimpan di localStorage agar tidak perlu kalibrasi ulang setiap buka app.
-let _calibratedCPS = null;
+// Kalibrasi CPS dipisah per bahasa: AR dan ID punya kecepatan berbeda
+let _calibratedCPS = { ar: null, id: null };
 (function(){
   try {
-    const v = parseFloat(localStorage.getItem('tts_cps'));
-    if(v > 0) _calibratedCPS = v;
+    const ar = parseFloat(localStorage.getItem('tts_cps_ar'));
+    const id = parseFloat(localStorage.getItem('tts_cps_id'));
+    if(ar > 0) _calibratedCPS.ar = ar;
+    if(id > 0) _calibratedCPS.id = id;
   } catch(e){}
 })();
 
-function _startCalibration(utt, textLength){
-  // Hanya kalibrasi jika belum ada nilai, dan onboundary tidak didukung
-  if(_calibratedCPS || _boundarySupported) return;
+function _startCalibration(utt, textLength, lang){
+  // Hanya kalibrasi jika belum ada nilai untuk bahasa ini, dan onboundary tidak didukung
+  if(_calibratedCPS[lang] || _boundarySupported) return;
   const t0 = Date.now();
   const origOnend = utt.onend;
   utt.onend = function(e){
     if(!_boundarySupported){
-      const elapsed = (Date.now() - t0) / 1000; // detik
+      const elapsed = (Date.now() - t0) / 1000;
       if(elapsed > 0.3 && textLength > 5){
-        _calibratedCPS = textLength / elapsed;
-        try { localStorage.setItem('tts_cps', _calibratedCPS); } catch(ex){}
+        _calibratedCPS[lang] = textLength / elapsed;
+        try { localStorage.setItem('tts_cps_' + lang, _calibratedCPS[lang]); } catch(ex){}
       }
     }
     if(origOnend) origOnend.call(this, e);
@@ -749,18 +752,26 @@ function _groupByPunctuation(wordSpans){
   return groups;
 }
 
-function _wordHighlighter(wordSpans, utt, cleanText){
+function _wordHighlighter(wordSpans, utt, cleanText, lang){
   let timerFallback = null;
+  let gateTimer = null;
+
+  // Rekonstruksi teks dari span data-w agar offset cocok dengan apa yang di-speak
+  // (cleanText mungkin sudah di-strip tapi span data-w belum)
+  const spanWords = Array.from(wordSpans).map(s => s.dataset.w || s.textContent);
+  const reconstructed = spanWords.join(' ');
 
   // onboundary: highlight per word natively (browser handles timing)
   utt.onboundary = e => {
     if(e.name !== 'word') return;
     _boundarySupported = true;
+    if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
     if(timerFallback){ clearTimeout(timerFallback); timerFallback = null; }
     wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+    // Hitung offset dari reconstructed text (bukan cleanText) agar cocok dengan span
     let offset = 0;
     for(let i = 0; i < wordSpans.length; i++){
-      const wlen = (wordSpans[i].dataset.w || wordSpans[i].textContent).length + 1;
+      const wlen = spanWords[i].length + 1; // +1 untuk spasi
       if(e.charIndex >= offset && e.charIndex < offset + wlen){
         wordSpans[i].classList.add('tts-word-active');
         break;
@@ -770,30 +781,15 @@ function _wordHighlighter(wordSpans, utt, cleanText){
   };
 
   // Timer fallback (Android / no onboundary):
-  // Mixed timing: each word gets its own char-proportional duration,
-  // PLUS the segment's punctuation pause bonus is distributed evenly across all words.
-  //
-  // Per word:  baseMs  = max(minWordMs, charLen / charsPerSec * 1000)
-  // Segment:   segMs   = sum of all baseMs in segment
-  //            pauseMs = max(0, minSegMs - segMs)  <- extra from punctuation pause
-  //            bonusMs = pauseMs / groupLen         <- split evenly to each word
-  // Final per word delay = baseMs + bonusMs
+  // CPS diambil per bahasa, lalu disesuaikan dengan rate utt
   const rate = utt.rate || 0.9;
-  // Gunakan nilai kalibrasi jika sudah tersedia, fallback ke estimasi konservatif.
-  // _calibratedCPS diukur dari durasi TTS aktual pada device ini.
-  const charsPerSec = (_calibratedCPS || 2) * rate;
-  const minWordMs = 320;  // floor per word — kata pendek tetap terlihat
-  const minSegMs  = 1400;  // minimum total ms per segmen (jeda tanda baca yang terasa)
+  const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 1.5 : 2.5));
+  const charsPerSec = baseCPS * rate;
+  const minWordMs = 280;   // floor per word — kata pendek tetap terlihat
+  const minSegMs  = 1200;  // minimum total ms per segmen (jeda tanda baca yang terasa)
 
   const groups = _groupByPunctuation(wordSpans);
 
-  // Pre-compute flat delay schedule (one entry per wordSpan).
-  // Setiap segmen (antar tanda baca):
-  //   1. Hitung baseMs per kata dari panjang karakter
-  //   2. Ratakan selisih vs minSegMs ke semua kata (surplus dikurangi, deficit ditambah)
-  //   3. Kata TERAKHIR di grup mendapat tambahan pauseExtra (jeda tanda baca)
-  //      - titik / ? / ! / … → +800ms
-  //      - koma / ; / :      → +350ms
   const schedule = [];
   groups.forEach(({spans: group, pauseExtra}) => {
     const bases = group.map(s => {
@@ -801,7 +797,7 @@ function _wordHighlighter(wordSpans, utt, cleanText){
       return Math.max(minWordMs, Math.round((w.length / charsPerSec) * 1000));
     });
     const segMs = bases.reduce((a, b) => a + b, 0);
-    const adjustPerWord = Math.round((minSegMs - segMs) / group.length);
+    const adjustPerWord = Math.round(Math.max(0, minSegMs - segMs) / group.length);
     bases.forEach((b, i) => {
       const isLast = (i === bases.length - 1);
       const delay = Math.max(minWordMs, b + adjustPerWord) + (isLast ? pauseExtra : 0);
@@ -823,10 +819,25 @@ function _wordHighlighter(wordSpans, utt, cleanText){
     tick();
   };
 
-  const gateTimer = setTimeout(startFallback, 300);
+  // Gate timer dimulai saat TTS benar-benar mulai berbicara (via onstart),
+  // bukan saat speak() dipanggil — ini kunci sinkronisasi di Android.
+  // onstart biasanya fired tepat saat suara mulai keluar.
+  utt.onstart = () => {
+    if(_boundarySupported) return; // onboundary sudah handle
+    // Delay kecil setelah onstart: TTS sudah mulai, mulai tick dari kata pertama
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const startOffset = isAndroid ? 80 : 50; // ms setelah onstart sebelum kata pertama
+    if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
+    gateTimer = setTimeout(startFallback, startOffset);
+  };
+
+  // Fallback gate jika onstart tidak fired (beberapa browser tidak support)
+  const isAndroid = /android/i.test(navigator.userAgent);
+  const gateDelay = isAndroid ? 500 : 300;
+  gateTimer = setTimeout(startFallback, gateDelay);
 
   return () => {
-    clearTimeout(gateTimer);
+    if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
     if(timerFallback){ clearTimeout(timerFallback); timerFallback = null; }
     wordSpans.forEach(s => s.classList.remove('tts-word-active'));
   };
@@ -842,11 +853,17 @@ function speakAr(text, blockEl){
   const femaleArKw=['female','woman','samira','laila','zira'];
   utt.voice=_pickVoice('ar', null, femaleArKw);
 
-  const wordSpans = blockEl && blockEl.classList.contains('tafsir-ar-span')
-    ? blockEl.querySelectorAll('.tafsir-ar-word') : null;
+  // Ambil wordSpans dari tafsir-ar-span atau kata-item biasa
+  let wordSpans = null;
+  if(blockEl){
+    if(blockEl.classList.contains('tafsir-ar-span')){
+      wordSpans = blockEl.querySelectorAll('.tafsir-ar-word');
+    }
+    // kata-item (per kata): tidak perlu word highlight karena hanya satu kata
+  }
 
   if(wordSpans && wordSpans.length){
-    const cleanup = _wordHighlighter(wordSpans, utt, text);
+    const cleanup = _wordHighlighter(wordSpans, utt, text, 'ar');
     utt.onend = () => { cleanup(); _setActive(null,'tts-active'); };
     _setActive(blockEl,'tts-active');
   } else {
@@ -854,14 +871,25 @@ function speakAr(text, blockEl){
     if(blockEl) _setActive(blockEl,'tts-active');
   }
 
-  _startCalibration(utt, text.length);
+  _startCalibration(utt, text.length, 'ar');
   window.speechSynthesis.speak(utt);
 }
 
 function speakId(text, blockEl){
   if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const clean=text.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
+
+  // Ambil wordSpans dulu, lalu rekonstruksi teks dari span agar offset cocok
+  const wordSpans = blockEl && blockEl.querySelectorAll('.tts-id-word');
+
+  let clean;
+  if(wordSpans && wordSpans.length){
+    // Gunakan teks dari span (sudah di-clean saat render), bukan dari dataset/innerText
+    clean = Array.from(wordSpans).map(s => s.dataset.w || s.textContent).join(' ');
+  } else {
+    clean = text.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
+  }
+
   const utt=new SpeechSynthesisUtterance(clean);
   utt.lang='id-ID';
   utt.rate=0.9;
@@ -869,9 +897,8 @@ function speakId(text, blockEl){
   const femaleIdKw=['female','woman','siti','wanita'];
   utt.voice=_pickVoice('id', ['ardi'], femaleIdKw);
 
-  const wordSpans = blockEl && blockEl.querySelectorAll('.tts-id-word');
   if(wordSpans && wordSpans.length){
-    const cleanup = _wordHighlighter(wordSpans, utt, clean);
+    const cleanup = _wordHighlighter(wordSpans, utt, clean, 'id');
     utt.onend = () => { cleanup(); _setActive(null,'tts-active'); };
     _setActive(blockEl,'tts-active');
   } else {
@@ -879,7 +906,7 @@ function speakId(text, blockEl){
     if(blockEl) _setActive(blockEl,'tts-active');
   }
 
-  _startCalibration(utt, clean.length);
+  _startCalibration(utt, clean.length, 'id');
   window.speechSynthesis.speak(utt);
 }
 
@@ -1003,11 +1030,13 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
       bodyHtml = `<div class="tafsir-text ar" id="tafsir-text-ar-${id}"
         ><span class="tafsir-ar-span" data-ar="${displayText.replace(/"/g,'&quot;')}" onclick="speakAr(this.dataset.ar,this)">${wordSpansHtml}</span></div>`;
     } else {
-      const idWords = displayText.split(/\s+/).filter(Boolean).map(w =>
+      // Clean teks ID sebelum dibuat span (sama dengan proses di speakId)
+      const idClean = displayText.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
+      const idWords = idClean.split(/\s+/).filter(Boolean).map(w =>
         `<span class="tts-id-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
       ).join(' ');
       bodyHtml = `<div class="tafsir-text id" id="tafsir-text-id-${id}"
-        onclick="speakId(this.innerText,this)"
+        onclick="speakId('',this)"
         >${idWords}</div>`;
     }
   }
@@ -1048,10 +1077,12 @@ function renderBaca(){
 
       }
       if(showTrAyat){
-        const trWords = a.tr.split(/\s+/).filter(Boolean).map(w=>
+        // Clean terjemahan dulu (sama dengan yang akan di-speak) sebelum dibuat span
+        const trClean = a.tr.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
+        const trWords = trClean.split(/\s+/).filter(Boolean).map(w=>
           `<span class="tts-id-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
         ).join(' ');
-        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> <span class="ayat-tr-text" data-tr="${a.tr.replace(/"/g,'&quot;')}" onclick="speakId(this.dataset.tr,this)">${trWords}</span></div>`;
+        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> <span class="ayat-tr-text" onclick="speakId('',this)">${trWords}</span></div>`;
       }
       if(showKata){
         const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
@@ -1073,8 +1104,12 @@ function renderBaca(){
           </div>
           <div class="fn-text" id="fn-text-${fnId}">${
             a.fn.split(/\n(?=\[\d+\])/).map((part,i)=>{
-              const safe=part.replace(/"/g,'&quot;');
-              return `<div class="fn-part" data-fn="${safe}" onclick="speakId(this.dataset.fn,this)">${part}</div>`;
+              // Clean bagian catatan kaki sama dengan proses speakId
+              const partClean = part.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
+              const partWords = partClean.split(/\s+/).filter(Boolean).map(w=>
+                `<span class="tts-id-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
+              ).join(' ');
+              return `<div class="fn-part" onclick="speakId('',this)">${partWords}</div>`;
             }).join('')
           }</div>
         </div>`;
