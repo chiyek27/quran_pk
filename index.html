@@ -562,10 +562,10 @@ function speakId(text){
   utt.rate=0.9;
   const voices=window.speechSynthesis.getVoices();
   const idVoices=voices.filter(v=>v.lang.startsWith('id'));
+  const ardiVoice=idVoices.find(v=>v.name.toLowerCase().includes('ardi'));
   const femaleKw=['female','woman','siti','wanita'];
   const maleVoice=idVoices.find(v=>!femaleKw.some(k=>v.name.toLowerCase().includes(k)));
-  if(maleVoice) utt.voice=maleVoice;
-  else if(idVoices.length) utt.voice=idVoices[0];
+  utt.voice=ardiVoice||maleVoice||idVoices[0]||null;
   window.speechSynthesis.speak(utt);
 }
 
