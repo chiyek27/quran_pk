@@ -1108,7 +1108,7 @@ function renderBaca(){
           kataAyat.forEach((k,wi)=>{
             html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" data-sidx="${sId}" data-ayat="${a.n}" data-widx="${wi+1}" onclick="playKataAudio(this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
-          html+=`<div class="kata-item kata-item-num"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
+          html+=`<div class="kata-item kata-item-num" data-sidx="${sId}" data-ayat="${a.n}" onclick="playAyatAudio(this)" style="cursor:pointer"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
           html+=`</div>`;
         }
       }
@@ -1614,6 +1614,84 @@ function playKataAudio(el) {
       console.warn('Audio error, fallback TTS');
       _stopRecAudio();
       speakAr(el.dataset.ar, el);
+    });
+  });
+}
+
+// Dipanggil saat kata-item-num diklik → putar satu ayat penuh
+// sambil highlight tiap kata-item sesuai timing segment
+function playAyatAudio(numEl) {
+  const sId   = numEl.dataset.sidx;
+  const ayatN = numEl.dataset.ayat;
+  const key   = sId + ':' + ayatN;
+
+  // Toggle off jika ayat yang sama sedang diputar
+  if (_recActiveEl === numEl) {
+    _stopRecAudio();
+    return;
+  }
+  _stopRecAudio();
+
+  _loadRecitationData(function(data) {
+    const entry = data[key];
+    if (!entry || !entry.segments || !entry.segments.length) return;
+
+    const segments = entry.segments; // [[wordIdx, startMs, endMs], ...]
+    const audioUrl = entry.audio_url;
+
+    // Kumpulkan semua kata-item dalam grid yang sama (saudara dari numEl)
+    const grid = numEl.parentElement;
+    const kataItems = Array.from(grid.querySelectorAll('.kata-item:not(.kata-item-num)'));
+
+    _recActiveEl = numEl;
+    numEl.classList.add('tts-active');
+
+    const audio = new Audio(audioUrl);
+    _recAudio = audio;
+    audio.preload = 'auto';
+
+    // Index segment yang sedang aktif
+    let activeSegIdx = -1;
+
+    audio.addEventListener('loadedmetadata', function() {
+      audio.currentTime = 0;
+      audio.play().catch(e => { console.warn('Audio play error:', e); _stopRecAudio(); });
+    });
+
+    audio.addEventListener('timeupdate', function() {
+      const nowMs = audio.currentTime * 1000;
+
+      // Cari segment yang aktif saat ini berdasarkan waktu
+      let newSegIdx = -1;
+      for (let i = 0; i < segments.length; i++) {
+        const [wIdx, startMs, endMs] = segments[i];
+        if (nowMs >= startMs && nowMs < endMs) {
+          newSegIdx = i;
+          break;
+        }
+      }
+
+      // Hanya update DOM jika segment berubah
+      if (newSegIdx !== activeSegIdx) {
+        activeSegIdx = newSegIdx;
+        // Hapus semua highlight kata
+        kataItems.forEach(el => el.classList.remove('tts-active'));
+        if (newSegIdx >= 0) {
+          // Highlight kata sesuai wordIdx (1-based)
+          const wIdx = segments[newSegIdx][0] - 1; // convert ke 0-based
+          if (kataItems[wIdx]) kataItems[wIdx].classList.add('tts-active');
+        }
+      }
+    });
+
+    audio.addEventListener('ended', function() {
+      _clearRecActive();
+      _recAudio = null;
+    });
+
+    audio.addEventListener('error', function() {
+      console.warn('Audio error pada ayat', key);
+      _stopRecAudio();
     });
   });
 }
