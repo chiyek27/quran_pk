@@ -358,9 +358,9 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
       <div class="settings-row" id="lat-ayat-row">
         <label>Ayat</label>
         <div class="ayat-range">
-          <select id="lat-from"></select>
+          <select id="lat-from" onchange="updateLatJumlah()"></select>
           <span class="ayat-sep">s/d</span>
-          <select id="lat-to"></select>
+          <select id="lat-to" onchange="updateLatJumlah()"></select>
         </div>
       </div>
       <div class="settings-row">
@@ -403,9 +403,9 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
       <div class="settings-row" id="fc-ayat-row" style="display:none">
         <label>Ayat</label>
         <div class="ayat-range">
-          <select id="fc-from"></select>
+          <select id="fc-from" onchange="updateFcJumlah()"></select>
           <span class="ayat-sep">s/d</span>
-          <select id="fc-to"></select>
+          <select id="fc-to" onchange="updateFcJumlah()"></select>
         </div>
       </div>
       <div class="settings-row">
@@ -485,15 +485,50 @@ function toggleLatScope(){
   document.getElementById('lat-surah-row').style.display=isAll?'none':'';
   document.getElementById('lat-ayat-row').style.display=isAll?'none':'';
   document.getElementById('lat-order-row').style.display=isAll?'none':'';
+  updateLatJumlah();
 }
 
 function toggleLatLevel(){
-  // no extra rows to show/hide for now, logic handled in startLatihan
+  updateLatJumlah();
 }
 
 function updateLatRange(){
   const s=DATA[document.getElementById('lat-surah').value];
   buildAyatOptions('lat-from','lat-to',s.jml,1,s.jml);
+  updateLatJumlah();
+}
+
+function updateLatJumlah(){
+  const scope=document.getElementById('lat-scope').value;
+  const level=document.getElementById('lat-level').value;
+  let count=0;
+  if(scope==='random-all'){
+    for(let sId=1;sId<=114;sId++){
+      const s=DATA[sId];
+      if(!s) continue;
+      if(level==='kata' && typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
+        Object.values(KATA_DATA[sId]).forEach(words=>{ count+=words.filter(w=>w.tr).length; });
+      } else {
+        count+=s.jml;
+      }
+    }
+  } else {
+    const sId=+document.getElementById('lat-surah').value;
+    const s=DATA[sId];
+    if(!s) return;
+    const fr=+document.getElementById('lat-from').value||1;
+    const to=+document.getElementById('lat-to').value||s.jml;
+    const filtered=s.ayat.filter(a=>a.n>=fr&&a.n<=to);
+    if(level==='kata' && typeof KATA_DATA!=='undefined' && KATA_DATA[sId]){
+      filtered.forEach(a=>{
+        const words=KATA_DATA[sId][a.n];
+        if(words) count+=words.filter(w=>w.tr).length;
+      });
+    } else {
+      count=filtered.length;
+    }
+  }
+  document.getElementById('lat-jumlah').value=count||'';
 }
 
 function toArabicNum(n){
@@ -683,11 +718,11 @@ function fcUpdateRange(){
   const v=document.getElementById('fc-surah').value;
   if(v==='all'){
     document.getElementById('fc-ayat-row').style.display='none';
+    updateFcJumlah();
     return;
   }
   const s=DATA[+v];
   if(s) buildAyatOptions('fc-from','fc-to',s.jml,1,s.jml);
-  // show/hide ayat row based on current level
   toggleFcLevel();
 }
 
@@ -700,6 +735,30 @@ function toggleFcLevel(){
     const s=DATA[+surahVal];
     if(s) buildAyatOptions('fc-from','fc-to',s.jml,1,s.jml);
   }
+  updateFcJumlah();
+}
+
+function updateFcJumlah(){
+  const sId=document.getElementById('fc-surah').value;
+  const level=document.getElementById('fc-level').value;
+  const fr=level==='kata'&&sId!=='all'?+document.getElementById('fc-from').value||1:null;
+  const to=level==='kata'&&sId!=='all'?+document.getElementById('fc-to').value||null:null;
+  let count=0;
+  const srcs=sId==='all'?Object.keys(DATA).map(Number):[+sId];
+  srcs.forEach(id=>{
+    const s=DATA[id];
+    if(!s) return;
+    if(level==='kata' && typeof KATA_DATA!=='undefined' && KATA_DATA[id]){
+      s.ayat.forEach(a=>{
+        if(fr!==null && (a.n<fr||a.n>to)) return;
+        const words=KATA_DATA[id][a.n];
+        if(words) count+=words.filter(w=>w.tr).length;
+      });
+    } else {
+      count+=s.ayat.length;
+    }
+  });
+  document.getElementById('fc-jumlah').value=count||'';
 }
 
 function startFlashcard(){
@@ -884,6 +943,7 @@ function populateSurahSelect(selId, includeAll) {
 populateSurahSelect('sel-surah', false);
 populateSurahSelect('lat-surah', false);
 populateSurahSelect('fc-surah', true);
+updateFcJumlah();
 
 updateAyatRange();
 updateLatRange();
