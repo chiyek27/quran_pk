@@ -623,13 +623,16 @@ function renderLatihan(){
     </div>
     <div class="lat-question-card">
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:12px">Ayat ${k.ayat} · ${k.surah}</div>
-      <div style="font-family:'Conv_original-hafs';font-size:34px;direction:rtl':'font-size:18px;font-weight:500'};color:var(--c-text);line-height:1.6">${Q}</div>
+      <div style="${mode==='ar2tr'?"font-family:'Conv_original-hafs';font-size:34px;direction:rtl;":"font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif);font-size:18px;font-weight:500;direction:ltr;"}color:var(--c-text);line-height:1.6">${Q}</div>
     </div>
     <div class="lat-choices" id="choices">`;
   choices.forEach((c,i)=>{
     const isAr=mode==='tr2ar';
+    const choiceStyle=isAr
+      ? "font-family:'Conv_original-hafs';font-size:22px;direction:rtl;"
+      : "font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif);font-size:13px;direction:ltr;";
     html+=`<button onclick="checkAnswer(${i},'${encodeURIComponent(c)}','${encodeURIComponent(A)}')" 
-      class="lat-choice-btn" style="font-family:'Conv_original-hafs';font-size:32px;" id="choice-${i}">
+      class="lat-choice-btn" style="${choiceStyle}" id="choice-${i}">
       ${c}</button>`;
   });
   html+=`</div>`;
