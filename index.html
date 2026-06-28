@@ -722,11 +722,11 @@ function _startCalibration(utt, textLength, lang){
 // Each segment = array of spans up to (and including) a span whose word ends with punctuation.
 function _groupByPunctuation(wordSpans){
   // Returns [{spans, pauseExtra}] where pauseExtra = bonus ms to add AFTER last word of group
-  // Heavy pause : titik, titik koma, tanda tanya, tanda seru, ellipsis → +300ms (singkat, kalimat selesai)
-  // Light pause : koma, titik dua → +200ms (jeda napas, kalimat lanjut)
+  // Heavy pause : titik, tanda tanya, tanda seru, ellipsis → +200ms (kalimat selesai)
+  // Light pause : koma, titik dua, titik koma → +100ms (jeda napas, kalimat lanjut)
   // No punct    : no extra pause
-  const heavyRe = /[.;?!؟…؛]$/;   // titik & titik koma masuk heavy (cepat)
-  const lightRe = /[,:،]$/;        // koma & titik dua masuk light (sedikit lebih panjang)
+  const heavyRe = /[.?!؟…]$/;
+  const lightRe = /[,;:،؛]$/;
   const anyRe   = /[.;,:?!،؛؟…]$/;
   const groups = [];
   let cur = [];
@@ -734,7 +734,7 @@ function _groupByPunctuation(wordSpans){
     cur.push(span);
     const w = (span.dataset.w || span.textContent).trim();
     if(anyRe.test(w)){
-      const pauseExtra = heavyRe.test(w) ? 300 : 200;
+      const pauseExtra = heavyRe.test(w) ? 200 : 100;
       groups.push({spans: cur, pauseExtra});
       cur = [];
     }
