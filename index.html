@@ -1477,8 +1477,7 @@ function switchTab(t){
   activeTab=t;
   const tabsEl=document.querySelector('.tabs');
   if(tabsEl){
-    const tabsTop=tabsEl.getBoundingClientRect().top+window.scrollY;
-    window.scrollTo({top:tabsTop,behavior:'smooth'});
+    window.scrollTo({top:tabsEl.offsetTop,behavior:'smooth'});
   }
   ['baca','latihan','flashcard'].forEach(x=>{
     document.getElementById('content-'+x).style.display=x===t?'block':'none';
