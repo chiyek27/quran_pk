@@ -774,7 +774,7 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
   const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 1.5 : 2.5));
   const charsPerSec = baseCPS * rate;
   const minWordMs = 100;
-  const maxWordMs = 500;
+  const maxWordMs = 600;
   const minSegMs  = 700;
 
   const groups = _groupByPunctuation(wordSpans);
