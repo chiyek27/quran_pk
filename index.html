@@ -777,6 +777,38 @@ const tafsirCache = {};
 let tafsirArFile = '';
 let tafsirIdFile = '';
 
+// Split As-Sa'di grouped tafsir text per ayat
+// AR markers: {6}, {8 ـ 9}   ID markers: (6), (8-9)
+function splitAssaadi(plainText, ayahKeys, lang) {
+  const surahNum = ayahKeys[0].split(':')[0];
+  const result = {};
+  let parts;
+  if (lang === 'ar') {
+    // split on {N} or {N ـ M}
+    parts = plainText.split(/(?=\{\d[\d\s\u0640\-]*\})/);
+  } else {
+    // split on (N) or (N-M) — only at word boundary to avoid false matches
+    parts = plainText.split(/(?=\(\d[\d\s\-]*\))/);
+  }
+  parts.forEach(part => {
+    part = part.trim();
+    if (!part) return;
+    let m;
+    if (lang === 'ar') {
+      m = part.match(/^\{(\d+)(?:[\s\u0640\-]+(\d+))?\}/);
+    } else {
+      m = part.match(/^\((\d+)(?:[\s\-]+(\d+))?\)/);
+    }
+    if (!m) return;
+    const n1 = parseInt(m[1]), n2 = parseInt(m[2] || m[1]);
+    for (let n = n1; n <= n2; n++) {
+      const k = surahNum + ':' + n;
+      if (ayahKeys.includes(k)) result[k] = part;
+    }
+  });
+  return result;
+}
+
 function onTafsirChange(lang) {
   const file = document.getElementById('sel-tafsir-' + lang).value;
   if (lang === 'ar') tafsirArFile = file;
@@ -813,6 +845,7 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
   const id = sId + '-' + ayatN;
 
   let bodyHtml = '';
+  let rangeInfo = '';
   if (!cache || cache === 'loading') {
     bodyHtml = `<div class="tafsir-text ${langClass} open" style="font-size:12px;color:var(--c-muted)">Memuat tafsir…</div>`;
   } else if (cache === 'error') {
@@ -827,16 +860,32 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
     tmp.innerHTML = entry.text;
     const plainText = (tmp.textContent || tmp.innerText || '').replace(/\s+/g,' ').trim();
     if (!plainText) return '';
+
+    // If entry covers multiple ayat (e.g. As-Sa'di), try to split per ayat
+    let displayText = plainText;
+    if (entry.ayah_keys && entry.ayah_keys.length > 1) {
+      const split = splitAssaadi(plainText, entry.ayah_keys, lang);
+      const thisKey = sId + ':' + ayatN;
+      if (split[thisKey]) {
+        displayText = split[thisKey];
+      } else {
+        // fallback: show range info if can't split
+        const first = entry.ayah_keys[0].split(':')[1];
+        const last  = entry.ayah_keys[entry.ayah_keys.length - 1].split(':')[1];
+        rangeInfo = ` <span style="font-size:10px;opacity:.7">(ayat ${first}–${last})</span>`;
+      }
+    }
+
     if (lang === 'ar') {
       // Split text into words, wrap each in a span for word-level TTS highlight
-      const words = plainText.split(/\s+/).filter(Boolean);
+      const words = displayText.split(/\s+/).filter(Boolean);
       const wordSpansHtml = words.map(w =>
         `<span class="tafsir-ar-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
       ).join(' ');
       bodyHtml = `<div class="tafsir-text ar" id="tafsir-text-ar-${id}"
-        ><span class="tafsir-ar-span" data-ar="${plainText.replace(/"/g,'&quot;')}" onclick="speakAr(this.dataset.ar,this)">${wordSpansHtml}</span></div>`;
+        ><span class="tafsir-ar-span" data-ar="${displayText.replace(/"/g,'&quot;')}" onclick="speakAr(this.dataset.ar,this)">${wordSpansHtml}</span></div>`;
     } else {
-      const idWords = plainText.split(/\s+/).filter(Boolean).map(w =>
+      const idWords = displayText.split(/\s+/).filter(Boolean).map(w =>
         `<span class="tts-id-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
       ).join(' ');
       bodyHtml = `<div class="tafsir-text id" id="tafsir-text-id-${id}"
@@ -848,7 +897,7 @@ function buildTafsirBlock(sId, ayatN, lang, file) {
   return `<div class="tafsir-block">
     <div class="tafsir-toggle ${langClass}" id="tafsir-tog-${langClass}-${id}"
       onclick="toggleTafsirItem('${id}','${langClass}')">
-      <span>${icon} ${label}</span>
+      <span>${icon} ${label}${rangeInfo||''}</span>
       <span class="tafsir-toggle-icon">▼</span>
     </div>
     ${bodyHtml}
