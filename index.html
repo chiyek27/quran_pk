@@ -690,13 +690,6 @@ function _setActive(elOrNull, cls){
   if(elOrNull) elOrNull.classList.add(c);
 }
 
-function _hasBoundary(){
-  // Chrome Android does not fire onboundary; detect via a quick test
-  // We use a flag set on first successful boundary event
-  return _boundarySupported;
-}
-let _boundarySupported = false;
-
 // Auto-calibration: ukur charsPerSec aktual dari TTS pertama yang selesai.
 // Disimpan di localStorage agar tidak perlu kalibrasi ulang setiap buka app.
 // Kalibrasi CPS dipisah per bahasa: AR dan ID punya kecepatan berbeda
@@ -711,17 +704,15 @@ let _calibratedCPS = { ar: null, id: null };
 })();
 
 function _startCalibration(utt, textLength, lang){
-  // Hanya kalibrasi jika belum ada nilai untuk bahasa ini, dan onboundary tidak didukung
-  if(_calibratedCPS[lang] || _boundarySupported) return;
+  // Kalibrasi hanya untuk Android (timer fallback), web pakai onboundary native
+  if(!_isAndroid || _calibratedCPS[lang]) return;
   const t0 = Date.now();
   const origOnend = utt.onend;
   utt.onend = function(e){
-    if(!_boundarySupported){
-      const elapsed = (Date.now() - t0) / 1000;
-      if(elapsed > 0.3 && textLength > 5){
-        _calibratedCPS[lang] = textLength / elapsed;
-        try { localStorage.setItem('tts_cps_' + lang, _calibratedCPS[lang]); } catch(ex){}
-      }
+    const elapsed = (Date.now() - t0) / 1000;
+    if(elapsed > 0.3 && textLength > 5){
+      _calibratedCPS[lang] = textLength / elapsed;
+      try { localStorage.setItem('tts_cps_' + lang, _calibratedCPS[lang]); } catch(ex){}
     }
     if(origOnend) origOnend.call(this, e);
   };
@@ -752,44 +743,40 @@ function _groupByPunctuation(wordSpans){
   return groups;
 }
 
+const _isAndroid = /android/i.test(navigator.userAgent);
+
 function _wordHighlighter(wordSpans, utt, cleanText, lang){
+  const spanWords = Array.from(wordSpans).map(s => s.dataset.w || s.textContent);
+
+  if(!_isAndroid){
+    // ── Web/Desktop: HANYA onboundary native, tidak ada timer sama sekali ──
+    utt.onboundary = e => {
+      if(e.name !== 'word') return;
+      wordSpans.forEach(s => s.classList.remove('tts-word-active'));
+      let offset = 0;
+      for(let i = 0; i < wordSpans.length; i++){
+        const wlen = spanWords[i].length + 1;
+        if(e.charIndex >= offset && e.charIndex < offset + wlen){
+          wordSpans[i].classList.add('tts-word-active');
+          break;
+        }
+        offset += wlen;
+      }
+    };
+    return () => { wordSpans.forEach(s => s.classList.remove('tts-word-active')); };
+  }
+
+  // ── Android: timer fallback (onboundary tidak didukung) ──
   let timerFallback = null;
   let gateTimer = null;
 
-  // Rekonstruksi teks dari span data-w agar offset cocok dengan apa yang di-speak
-  // (cleanText mungkin sudah di-strip tapi span data-w belum)
-  const spanWords = Array.from(wordSpans).map(s => s.dataset.w || s.textContent);
-  const reconstructed = spanWords.join(' ');
-
-  // onboundary: highlight per word natively (browser handles timing)
-  utt.onboundary = e => {
-    if(e.name !== 'word') return;
-    _boundarySupported = true;
-    if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
-    if(timerFallback){ clearTimeout(timerFallback); timerFallback = null; }
-    wordSpans.forEach(s => s.classList.remove('tts-word-active'));
-    // Hitung offset dari reconstructed text (bukan cleanText) agar cocok dengan span
-    let offset = 0;
-    for(let i = 0; i < wordSpans.length; i++){
-      const wlen = spanWords[i].length + 1; // +1 untuk spasi
-      if(e.charIndex >= offset && e.charIndex < offset + wlen){
-        wordSpans[i].classList.add('tts-word-active');
-        break;
-      }
-      offset += wlen;
-    }
-  };
-
-  // Timer fallback (Android / no onboundary):
-  // CPS diambil per bahasa, lalu disesuaikan dengan rate utt
   const rate = utt.rate || 0.9;
   const baseCPS = (_calibratedCPS[lang || 'id'] || (lang === 'ar' ? 1.5 : 2.5));
   const charsPerSec = baseCPS * rate;
-  const minWordMs = 280;   // floor per word — kata pendek tetap terlihat
-  const minSegMs  = 1200;  // minimum total ms per segmen (jeda tanda baca yang terasa)
+  const minWordMs = 220;
+  const minSegMs  = 1000;
 
   const groups = _groupByPunctuation(wordSpans);
-
   const schedule = [];
   groups.forEach(({spans: group, pauseExtra}) => {
     const bases = group.map(s => {
@@ -800,41 +787,28 @@ function _wordHighlighter(wordSpans, utt, cleanText, lang){
     const adjustPerWord = Math.round(Math.max(0, minSegMs - segMs) / group.length);
     bases.forEach((b, i) => {
       const isLast = (i === bases.length - 1);
-      const delay = Math.max(minWordMs, b + adjustPerWord) + (isLast ? pauseExtra : 0);
-      schedule.push(delay);
+      schedule.push(Math.max(minWordMs, b + adjustPerWord) + (isLast ? pauseExtra : 0));
     });
   });
 
   const startFallback = () => {
-    if(_boundarySupported) return;
     let idx = 0;
     const tick = () => {
       if(idx >= wordSpans.length) return;
       wordSpans.forEach(s => s.classList.remove('tts-word-active'));
       wordSpans[idx].classList.add('tts-word-active');
-      const delay = schedule[idx] || minWordMs;
-      idx++;
-      timerFallback = setTimeout(tick, delay);
+      timerFallback = setTimeout(tick, schedule[idx++] || minWordMs);
     };
     tick();
   };
 
-  // Gate timer dimulai saat TTS benar-benar mulai berbicara (via onstart),
-  // bukan saat speak() dipanggil — ini kunci sinkronisasi di Android.
-  // onstart biasanya fired tepat saat suara mulai keluar.
+  // Mulai tick saat onstart fired (suara sudah keluar) + offset 30ms
   utt.onstart = () => {
-    if(_boundarySupported) return; // onboundary sudah handle
-    // Delay kecil setelah onstart: TTS sudah mulai, mulai tick dari kata pertama
-    const isAndroid = /android/i.test(navigator.userAgent);
-    const startOffset = isAndroid ? 80 : 50; // ms setelah onstart sebelum kata pertama
     if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
-    gateTimer = setTimeout(startFallback, startOffset);
+    gateTimer = setTimeout(startFallback, 30);
   };
-
-  // Fallback gate jika onstart tidak fired (beberapa browser tidak support)
-  const isAndroid = /android/i.test(navigator.userAgent);
-  const gateDelay = isAndroid ? 500 : 300;
-  gateTimer = setTimeout(startFallback, gateDelay);
+  // Safety fallback jika onstart tidak fired
+  gateTimer = setTimeout(startFallback, 600);
 
   return () => {
     if(gateTimer){ clearTimeout(gateTimer); gateTimer = null; }
