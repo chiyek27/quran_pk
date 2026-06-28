@@ -155,12 +155,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   background:var(--c-green-light);
   border-color:var(--c-green);
 }
-.ayat-tr-text.tts-active{
-  background:var(--c-green-light);
-  border-radius:4px;
-  padding:2px 4px;
-  color:var(--c-text);
-}
+
 .ayat-ar{
   direction:rtl;
   font-family:"Conv_original-hafs";
@@ -176,6 +171,12 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   color:var(--c-muted);line-height:1.5;background:var(--c-bg);
 }
 .ayat-tr-text{cursor:pointer;}
+.ayat-tr-text.tts-active{
+  background:var(--c-green-light);
+  border-radius:4px;
+  padding:2px 4px;
+  color:var(--c-text);
+}
 
 /* ── Per-kata ── */
 .kata-ayat{margin-bottom:16px}
@@ -200,7 +201,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 }
 .kata-ar{font-family:"Conv_original-hafs";font-size:26px;color:var(--c-text);direction:rtl;line-height:1.5}
 .kata-tr{font-size:11px;color:var(--c-muted);margin-top:4px;direction:ltr;line-height:1.3}
-.kata-item-num{min-width:48px;cursor:default}
+.kata-item-num{min-width:48px;cursor:pointer}
 
 /* ── Flashcard ── */
 .fc-wrap{padding:4px 0}
@@ -295,6 +296,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   padding:4px 6px;
   color:var(--c-text);
 }
+
 .fn-part{
   cursor:pointer;padding:3px 0;
 }
@@ -434,6 +436,25 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         <div class="toggle-group">
           <div class="tgl on" id="tgl-fn" onclick="toggleFn()">Tampilkan</div>
         </div>
+      </div>
+
+      <div class="settings-section-label">Audio</div>
+
+      <div class="settings-row">
+        <label>Qari</label>
+        <select id="sel-qari" onchange="onQariChange()" style="max-width:200px">
+          <option value="">— Tidak tampilkan —</option>
+          <option value="ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs-949.json" selected>Abdul Basit (Mujawwad)</option>
+          <option value="ayah-recitation-abdul-basit-murattal-hafs-112.json">Abdul Basit (Murattal)</option>
+          <option value="ayah-recitation-mishary-rashid-al-afasy-134.json">Mishary Rashid Al-Afasy</option>
+          <option value="ayah-recitation-mahmoud-khalil-al-husary-179.json">Mahmoud Khalil Al-Husary</option>
+          <option value="ayah-recitation-muhammad-ayyub-114.json">Muhammad Ayyub</option>
+          <option value="ayah-recitation-ali-abdur-rahman-al-hudhaify-136.json">Ali Al-Hudhaify</option>
+          <option value="ayah-recitation-hani-ar-rifai-147.json">Hani Ar-Rifai</option>
+          <option value="ayah-recitation-saad-al-ghamdi-135.json">Saad Al-Ghamdi</option>
+          <option value="ayah-recitation-maher-al-mueaqly-113.json">Maher Al-Mueaqly</option>
+          <option value="ayah-recitation-yasser-ad-dussary-200.json">Yasser Ad-Dussary</option>
+        </select>
       </div>
 
       <div class="settings-section-label">Tafsir</div>
@@ -664,6 +685,12 @@ function updateLatJumlah(){
   }
   document.getElementById('lat-jumlah').value=count||'';
 }
+
+
+
+
+
+
 
 let _ttsVoices=[];
 function _loadVoices(){
@@ -927,6 +954,7 @@ function speakId(text, blockEl){
   window.speechSynthesis.speak(utt);
 }
 
+
 function toArabicNum(n){
   return String(n).split('').map(d=>'٠١٢٣٤٥٦٧٨٩'[+d]).join('');
 }
@@ -1121,7 +1149,6 @@ function renderBaca(){
           </div>
           <div class="fn-text" id="fn-text-${fnId}">${
             a.fn.split(/\n(?=\[\d+\])/).map((part,i)=>{
-              // Clean bagian catatan kaki sama dengan proses speakId
               const partClean = part.replace(/^\s*\[\d+\]\.?\s*/,'').replace(/\[\d+\]/g,'').replace(/[()]/g,'').replace(/["\u201C\u201D\u2018\u2019]/g,'').replace(/`/g,"'").trim();
               const partWords = partClean.split(/\s+/).filter(Boolean).map(w=>
                 `<span class="tts-id-word" data-w="${w.replace(/"/g,'&quot;')}">${w}</span>`
@@ -1507,40 +1534,53 @@ updateAyatRange();
 updateLatRange();
 renderBaca();
 
-// ── Recitation Audio (Abdul Basit Mujawwad) ─────────────────────────────────
-// JSON dimuat sekali saat pertama kali dibutuhkan, lalu di-cache
-let _recitationData = null;
-let _recitationLoading = false;
-let _recitationCallbacks = [];
-const RECITATION_JSON = 'ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs-949.json';
+// ── Recitation Audio ────────────────────────────────────────────────────────
+// Cache per file: { filename: data | 'loading' | 'error' }
+const _recCache = {};
+const _recCallbacks = {}; // { filename: [cb, cb, ...] }
 
-function _loadRecitationData(cb) {
-  if (_recitationData) { cb(_recitationData); return; }
-  if (cb) _recitationCallbacks.push(cb);
-  if (_recitationLoading) return;
-  _recitationLoading = true;
-  fetch(RECITATION_JSON)
+function _loadRecitationData(file, cb) {
+  if (!file) return;
+  if (_recCache[file] && _recCache[file] !== 'loading') {
+    if (_recCache[file] !== 'error') cb(_recCache[file]);
+    return;
+  }
+  if (!_recCallbacks[file]) _recCallbacks[file] = [];
+  if (cb) _recCallbacks[file].push(cb);
+  if (_recCache[file] === 'loading') return;
+  _recCache[file] = 'loading';
+  fetch(file)
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(data => {
-      _recitationData = data;
-      _recitationLoading = false;
-      _recitationCallbacks.forEach(fn => fn(data));
-      _recitationCallbacks = [];
+      _recCache[file] = data;
+      (_recCallbacks[file] || []).forEach(fn => fn(data));
+      _recCallbacks[file] = [];
     })
     .catch(err => {
-      console.warn('Recitation JSON gagal dimuat:', err);
-      _recitationLoading = false;
-      _recitationCallbacks = [];
+      console.warn('Gagal memuat recitation:', file, err);
+      _recCache[file] = 'error';
+      _recCallbacks[file] = [];
     });
+}
+
+function _currentQariFile() {
+  const sel = document.getElementById('sel-qari');
+  return sel ? sel.value : '';
+}
+
+function onQariChange() {
+  // Stop audio yang sedang berjalan, reset cache tidak perlu (keep multi-cache)
+  _stopRecAudio();
+  // Preload file baru di background
+  const file = _currentQariFile();
+  if (file) _loadRecitationData(file, () => {});
 }
 
 // Audio instance aktif
 let _recAudio = null;
-let _recHighlightTimer = null;
 let _recActiveEl = null;
 
 function _clearRecActive() {
-  if (_recHighlightTimer) { clearTimeout(_recHighlightTimer); _recHighlightTimer = null; }
   document.querySelectorAll('.kata-item.tts-active').forEach(el => el.classList.remove('tts-active'));
   _recActiveEl = null;
 }
@@ -1554,150 +1594,99 @@ function _stopRecAudio() {
   _clearRecActive();
 }
 
-// Dipanggil saat kata-item diklik
-// el: elemen .kata-item, data-sidx, data-ayat, data-widx sudah ada
+// Dipanggil saat kata-item diklik → putar satu kata saja (seek ke segmennya)
 function playKataAudio(el) {
   const sId   = el.dataset.sidx;
   const ayatN = el.dataset.ayat;
-  const wIdx  = parseInt(el.dataset.widx); // 1-based, sesuai JSON segments
+  const wIdx  = parseInt(el.dataset.widx);
   const key   = sId + ':' + ayatN;
+  const file  = _currentQariFile();
+  if (!file) return;
 
-  // Jika elemen yang sama sedang aktif → stop (toggle off)
-  if (_recActiveEl === el) {
-    _stopRecAudio();
-    return;
-  }
+  if (_recActiveEl === el) { _stopRecAudio(); return; }
   _stopRecAudio();
 
-  _loadRecitationData(function(data) {
+  _loadRecitationData(file, function(data) {
     const entry = data[key];
-    if (!entry) {
-      // Fallback ke TTS jika data tidak ada di JSON
-      speakAr(el.dataset.ar, el);
-      return;
-    }
+    if (!entry || !entry.segments) return;
+    const seg = entry.segments.find(s => s[0] === wIdx);
+    if (!seg) return;
 
-    const segments = entry.segments; // [[wordIdx, startMs, endMs], ...]
-    const seg = segments.find(s => s[0] === wIdx);
-    if (!seg) {
-      // Kata ini tidak punya segment → fallback TTS
-      speakAr(el.dataset.ar, el);
-      return;
-    }
-
-    const startMs = seg[1];
-    const endMs   = seg[2];
-    const audioUrl = entry.audio_url;
-
+    const startMs = seg[1], endMs = seg[2];
     el.classList.add('tts-active');
     _recActiveEl = el;
 
-    const audio = new Audio(audioUrl);
+    const audio = new Audio(entry.audio_url);
     _recAudio = audio;
-    audio.preload = 'auto';
-
-    audio.addEventListener('loadedmetadata', function() {
+    audio.addEventListener('loadedmetadata', () => {
       audio.currentTime = startMs / 1000;
-      audio.play().catch(e => { console.warn('Audio play error:', e); _stopRecAudio(); });
+      audio.play().catch(() => _stopRecAudio());
     });
-
-    // Monitor: hentikan di akhir segment kata ini
-    audio.addEventListener('timeupdate', function() {
+    audio.addEventListener('timeupdate', () => {
       if (audio.currentTime * 1000 >= endMs) {
         audio.pause();
         _clearRecActive();
         _recAudio = null;
       }
     });
-
-    audio.addEventListener('error', function() {
-      console.warn('Audio error, fallback TTS');
-      _stopRecAudio();
-      speakAr(el.dataset.ar, el);
-    });
+    audio.addEventListener('error', () => _stopRecAudio());
   });
 }
 
-// Dipanggil saat kata-item-num diklik → putar satu ayat penuh
-// sambil highlight tiap kata-item sesuai timing segment
+// Dipanggil saat kata-item-num diklik → putar ayat penuh, highlight kata per segment
 function playAyatAudio(numEl) {
   const sId   = numEl.dataset.sidx;
   const ayatN = numEl.dataset.ayat;
   const key   = sId + ':' + ayatN;
+  const file  = _currentQariFile();
+  if (!file) return;
 
-  // Toggle off jika ayat yang sama sedang diputar
-  if (_recActiveEl === numEl) {
-    _stopRecAudio();
-    return;
-  }
+  if (_recActiveEl === numEl) { _stopRecAudio(); return; }
   _stopRecAudio();
 
-  _loadRecitationData(function(data) {
+  _loadRecitationData(file, function(data) {
     const entry = data[key];
     if (!entry || !entry.segments || !entry.segments.length) return;
 
-    const segments = entry.segments; // [[wordIdx, startMs, endMs], ...]
-    const audioUrl = entry.audio_url;
-
-    // Kumpulkan semua kata-item dalam grid yang sama (saudara dari numEl)
+    const segments = entry.segments;
     const grid = numEl.parentElement;
     const kataItems = Array.from(grid.querySelectorAll('.kata-item:not(.kata-item-num)'));
 
     _recActiveEl = numEl;
     numEl.classList.add('tts-active');
 
-    const audio = new Audio(audioUrl);
+    const audio = new Audio(entry.audio_url);
     _recAudio = audio;
-    audio.preload = 'auto';
-
-    // Index segment yang sedang aktif
     let activeSegIdx = -1;
 
-    audio.addEventListener('loadedmetadata', function() {
+    audio.addEventListener('loadedmetadata', () => {
       audio.currentTime = 0;
-      audio.play().catch(e => { console.warn('Audio play error:', e); _stopRecAudio(); });
+      audio.play().catch(() => _stopRecAudio());
     });
 
-    audio.addEventListener('timeupdate', function() {
+    audio.addEventListener('timeupdate', () => {
       const nowMs = audio.currentTime * 1000;
-
-      // Cari segment yang aktif saat ini berdasarkan waktu
       let newSegIdx = -1;
       for (let i = 0; i < segments.length; i++) {
-        const [wIdx, startMs, endMs] = segments[i];
-        if (nowMs >= startMs && nowMs < endMs) {
-          newSegIdx = i;
-          break;
-        }
+        if (nowMs >= segments[i][1] && nowMs < segments[i][2]) { newSegIdx = i; break; }
       }
-
-      // Hanya update DOM jika segment berubah
       if (newSegIdx !== activeSegIdx) {
         activeSegIdx = newSegIdx;
-        // Hapus semua highlight kata
         kataItems.forEach(el => el.classList.remove('tts-active'));
         if (newSegIdx >= 0) {
-          // Highlight kata sesuai wordIdx (1-based)
-          const wIdx = segments[newSegIdx][0] - 1; // convert ke 0-based
-          if (kataItems[wIdx]) kataItems[wIdx].classList.add('tts-active');
+          const wi = segments[newSegIdx][0] - 1;
+          if (kataItems[wi]) kataItems[wi].classList.add('tts-active');
         }
       }
     });
 
-    audio.addEventListener('ended', function() {
-      _clearRecActive();
-      _recAudio = null;
-    });
-
-    audio.addEventListener('error', function() {
-      console.warn('Audio error pada ayat', key);
-      _stopRecAudio();
-    });
+    audio.addEventListener('ended', () => { _clearRecActive(); _recAudio = null; });
+    audio.addEventListener('error', () => _stopRecAudio());
   });
 }
 
-// Preload recitation data di background setelah halaman siap
-setTimeout(() => _loadRecitationData(() => {}), 1500);
-// ─────────────────────────────────────────────────────────────────────────────
+// Preload qari default di background setelah halaman siap
+setTimeout(() => { const f = _currentQariFile(); if (f) _loadRecitationData(f, () => {}); }, 1500);
+// ────────────────────────────────────────────────────────────────────────────
 </script>
 </html>
