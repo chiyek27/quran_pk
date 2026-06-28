@@ -162,7 +162,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 }
 .ayat-tr{
   padding:12px 0px;font-size:14px;
-  color:var(--c-muted);line-height:1.5;background:var(--c-bg);
+  color:var(--c-muted);line-height:1.5;background:var(--c-bg);cursor:pointer;
 }
 
 /* ── Per-kata ── */
@@ -554,6 +554,21 @@ function speakAr(text){
   window.speechSynthesis.speak(utt);
 }
 
+function speakId(text){
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utt=new SpeechSynthesisUtterance(text);
+  utt.lang='id-ID';
+  utt.rate=0.9;
+  const voices=window.speechSynthesis.getVoices();
+  const idVoices=voices.filter(v=>v.lang.startsWith('id'));
+  const femaleKw=['female','woman','siti','wanita'];
+  const maleVoice=idVoices.find(v=>!femaleKw.some(k=>v.name.toLowerCase().includes(k)));
+  if(maleVoice) utt.voice=maleVoice;
+  else if(idVoices.length) utt.voice=idVoices[0];
+  window.speechSynthesis.speak(utt);
+}
+
 function toArabicNum(n){
   return String(n).split('').map(d=>'٠١٢٣٤٥٦٧٨٩'[+d]).join('');
 }
@@ -583,7 +598,7 @@ function renderBaca(){
 
       }
       if(showTrAyat){
-        html+=`<div class="ayat-tr"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> ${a.tr}</div>`;
+        html+=`<div class="ayat-tr" onclick="speakId('${a.tr.replace(/'/g,"\\'")}')"><span style="font-weight:600;color:var(--c-text)">${a.n}.</span> ${a.tr}</div>`;
       }
       if(showKata){
         const kataAyat = (typeof KATA_DATA !== 'undefined' && KATA_DATA[sId] && KATA_DATA[sId][a.n]) ? KATA_DATA[sId][a.n] : null;
