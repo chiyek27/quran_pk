@@ -561,6 +561,16 @@ if('speechSynthesis' in window){
   window.speechSynthesis.onvoiceschanged=_loadVoices;
 }
 
+function _pickVoice(lang, priorityKw, femaleKw){
+  const list=_ttsVoices.filter(v=>v.lang.startsWith(lang));
+  if(priorityKw){
+    const hit=list.find(v=>priorityKw.some(k=>v.name.toLowerCase().includes(k)));
+    if(hit) return hit;
+  }
+  const male=list.find(v=>!femaleKw.some(k=>v.name.toLowerCase().includes(k)));
+  return male||list[0]||null;
+}
+
 function _setActive(elOrNull, cls){
   const c=cls||'tts-active';
   document.querySelectorAll('.'+c).forEach(el=>el.classList.remove(c));
