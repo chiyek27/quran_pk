@@ -629,7 +629,7 @@ function renderLatihan(){
   choices.forEach((c,i)=>{
     const isAr=mode==='tr2ar';
     html+=`<button onclick="checkAnswer(${i},'${encodeURIComponent(c)}','${encodeURIComponent(A)}')" 
-      class="lat-choice-btn" style="font-family:'Conv_original-hafs';font-size:20px;direction:rtl':'font-size:13px'}" id="choice-${i}">
+      class="lat-choice-btn" style="font-family:'Conv_original-hafs';font-size:32px;" id="choice-${i}">
       ${c}</button>`;
   });
   html+=`</div>`;
