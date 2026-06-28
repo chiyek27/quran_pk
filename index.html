@@ -409,6 +409,10 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         </div>
       </div>
       <div class="settings-row">
+        <label>Jumlah kartu</label>
+        <input type="number" id="fc-jumlah" value="20" min="1" max="500" style="max-width:80px;text-align:center">
+      </div>
+      <div class="settings-row">
         <label>Urutan kartu</label>
         <div class="toggle-group">
           <div class="tgl" id="tgl-fc-urut" onclick="toggleFCOrder('urut')">Urut</div>
@@ -723,6 +727,8 @@ function startFlashcard(){
     }
   });
   if(fcOrder==='acak') cards.sort(()=>Math.random()-.5);
+  const jumlah=Math.max(1,parseInt(document.getElementById('fc-jumlah').value)||20);
+  cards=cards.slice(0,jumlah);
   fc={cards,idx:0,flipped:false,done:[]};
   renderFC();
 }
@@ -731,7 +737,6 @@ function renderFC(){
   const {cards,idx,flipped,done}=fc;
   if(cards.length===0){document.getElementById('fc-output').innerHTML='<p style="color:var(--c-muted);font-size:13px;text-align:center">Mulai flashcard dari pengaturan di atas.</p>';return;}
   const c=cards[idx];
-  const dots=cards.map((_,i)=>`<div class="fc-dot ${done.includes(i)?'done':i===idx?'cur':''}"></div>`).join('');
   let html=`<div class="fc-wrap">
     <div class="fc-mode-row">
       <button class="fc-mode-btn ${!fc.showTr?'on':''}" onclick="setFCMode(false)">Arab → Arti</button>
@@ -774,11 +779,6 @@ function renderFC(){
   }
   html+=`</div>
     <div class="swipe-hint">← Geser atau ketuk untuk navigasi →</div>
-    <div class="fc-progress">${dots}</div>
-    <div class="fc-actions">
-      <button class="fc-act-repeat" onclick="fcMark(false)">↺ Ulangi</button>
-      <button class="fc-act-know" onclick="fcMark(true)">✓ Hafal</button>
-    </div>
   </div>`;
   document.getElementById('fc-output').innerHTML=html;
 }
