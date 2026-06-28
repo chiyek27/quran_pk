@@ -188,6 +188,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 }
 .kata-ar{font-family:"Conv_original-hafs";font-size:26px;color:var(--c-text);direction:rtl;line-height:1.5}
 .kata-tr{font-size:11px;color:var(--c-muted);margin-top:4px;direction:ltr;line-height:1.3}
+.kata-item-num{background:var(--c-gold-light);border-color:var(--c-gold-border);min-width:48px;cursor:default}
 
 /* ── Flashcard ── */
 .fc-wrap{padding:4px 0}
@@ -576,6 +577,7 @@ function renderBaca(){
           kataAyat.forEach(k=>{
             html+=`<div class="kata-item"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
+          html+=`<div class="kata-item kata-item-num"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
           html+=`</div>`;
         }
       }
