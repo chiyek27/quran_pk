@@ -235,7 +235,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 .fc-front,.fc-back{text-align:center;width:100%}
 .fc-ar{font-family:"Conv_original-hafs";font-size:56px;color:var(--c-text);direction:rtl;line-height:1.5}
 .fc-hint{font-size:12px;color:var(--c-muted);margin-top:14px;letter-spacing:.02em}
-.fc-tr-big{font-size:20px;font-weight:600;color:var(--c-green);margin-bottom:8px;line-height:1.4}
+.fc-tr-big{font-size:28px;font-weight:600;color:var(--c-green);margin-bottom:8px;line-height:1.4}
 .fc-ar-sm{font-family:"Conv_original-hafs";font-size:26px;color:var(--c-muted);direction:rtl}
 .fc-surah{font-size:12px;color:var(--c-muted);margin-top:10px}
 .swipe-hint{font-size:11px;color:var(--c-muted);text-align:center;margin-top:10px;opacity:.7}
@@ -286,7 +286,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   flex:1;
 }
 .fc-fs-card .fc-ar{font-size:clamp(72px,14vw,160px)}
-.fc-fs-card .fc-tr-big{font-size:clamp(28px,5vw,56px)}
+.fc-fs-card .fc-tr-big{font-size:clamp(42px,8vw,90px)}
 .fc-fs-card .fc-ar-sm{font-size:clamp(22px,4vw,40px)}
 .fc-fs-card .fc-hint{font-size:clamp(13px,2vw,18px);margin-top:20px}
 .fc-fs-card .fc-surah{font-size:clamp(12px,1.8vw,16px);margin-top:14px}
@@ -1574,7 +1574,7 @@ function renderFC(){
     const main=fc.showTr?c.tr:c.ar;
     const isAr=!fc.showTr;
     html+=`<div class="fc-front">
-      <div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:20px;color:var(--c-text)'}">${main}</div>
+      <div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:28px;color:var(--c-text)'}">${main}</div>
       <div class="fc-hint">${isPlaying?'🔊 Sedang diputar…':'Tap untuk lihat jawaban'}</div>
     </div>`;
   } else {
@@ -2162,7 +2162,7 @@ function fcFsRender(){
   if(!flipped){
     const main = fc.showTr ? c.tr : c.ar;
     const isAr = !fc.showTr;
-    inner = `<div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:clamp(28px,5vw,56px);color:var(--c-text)'}">${main}</div>
+    inner = `<div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:clamp(42px,8vw,90px);color:var(--c-text)'}">${main}</div>
              <div class="fc-hint">Tap untuk lihat jawaban</div>`;
   } else {
     if(!fc.showTr){
