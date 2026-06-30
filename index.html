@@ -2011,7 +2011,7 @@ function playAyatAudio(numEl) {
       const nowMs = audio.currentTime * 1000;
       let newSegIdx = -1;
       for (let i = 0; i < segments.length; i++) {
-        if (nowMs >= segments[i][1] && nowMs < segments[i][2]) { newSegIdx = i; break; }
+        if (nowMs >= segments[i][1]) { newSegIdx = i; } else { break; }
       }
       if (newSegIdx !== activeSegIdx) {
         activeSegIdx = newSegIdx;
