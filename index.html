@@ -1603,7 +1603,7 @@ function renderFC(){
   document.getElementById('fc-output').innerHTML=html;
 }
 
-function setFCMode(v){fc.showTr=v;fc.flipped=false;_fcStopAudio();renderFC();_playerFcUpdateUI();}
+function setFCMode(v){fc.showTr=v;renderFC();_playerFcUpdateUI();}
 function flipFC(){fc.flipped=!fc.flipped;renderFC();}
 function fcNext(){
   if(_fcAudio && !_fcAudio.paused) return;
