@@ -1551,6 +1551,24 @@ function startFlashcard(){
   _playerFcUpdateUI();
 }
 
+// ── Auto-fit font size agar teks panjang (mode per-Ayat) tetap muat di layar ──
+function fcFitSize(text, minPx, maxPx, charsAtMax){
+  const len = (text||'').length;
+  if(len<=charsAtMax) return maxPx;
+  const range = charsAtMax*4;
+  const t = Math.min(1,(len-charsAtMax)/range);
+  return Math.round(maxPx - t*(maxPx-minPx));
+}
+function fcFitClamp(text, minPx, vw, maxPx, charsAtMax){
+  const len = (text||'').length;
+  let scale=1;
+  if(len>charsAtMax) scale=Math.max(0.3, charsAtMax/len);
+  const newMax=Math.round(maxPx*scale);
+  const newMin=Math.max(minPx, Math.round(newMax*0.35));
+  const newVw=(vw*scale).toFixed(2);
+  return `clamp(${newMin}px, ${newVw}vw, ${newMax}px)`;
+}
+
 function renderFC(){
   const {cards,idx,flipped}=fc;
   if(cards.length===0){document.getElementById('fc-output').innerHTML='<p style="color:var(--c-muted);font-size:13px;text-align:center">Mulai flashcard dari pengaturan di atas.</p>';return;}
@@ -1574,24 +1592,29 @@ function renderFC(){
   if(!flipped){
     const main=fc.showTr?c.tr:c.ar;
     const isAr=!fc.showTr;
+    const mainSize=isAr?fcFitSize(c.ar,22,56,18):fcFitSize(c.tr,14,28,30);
     html+=`<div class="fc-front">
-      <div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:28px;color:var(--c-text)'}">${main}</div>
+      <div class="${isAr?'fc-ar':'fc-tr-big'}" style="font-size:${mainSize}px;${isAr?'':'color:var(--c-text)'}">${main}</div>
       <div class="fc-hint">${isPlaying?'🔊 Sedang diputar…':'Tap untuk lihat jawaban'}</div>
     </div>`;
   } else {
     if(!fc.showTr){
+      const arSize=fcFitSize(c.ar,14,24,25);
+      const trSize=fcFitSize(c.tr,14,28,30);
       html+=`<div class="fc-back">
-        <div class="fc-ar-sm" style="font-size:24px;direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted);font-weight:400">
+        <div class="fc-ar-sm" style="font-size:${arSize}px;direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted);font-weight:400">
           ${c.ar}</div>
-        <div class="fc-tr-big" style="font-size:28px;color:var(--c-green);font-weight:600">
+        <div class="fc-tr-big" style="font-size:${trSize}px;color:var(--c-green);font-weight:600">
           ${c.tr}</div>
         <div class="fc-surah">${c.ref}</div>
       </div>`;
     } else {
+      const arSize=fcFitSize(c.ar,22,56,18);
+      const trSize=fcFitSize(c.tr,10,13,50);
       html+=`<div class="fc-back">
-        <div class="fc-tr-big" style="font-family:'Conv_original-hafs';font-size:56px;direction:rtl;color:var(--c-green);font-weight:400">
+        <div class="fc-tr-big" style="font-family:'Conv_original-hafs';font-size:${arSize}px;direction:rtl;color:var(--c-green);font-weight:400">
           ${c.ar}</div>
-        <div class="fc-ar-sm" style="font-size:13px;direction:ltr;font-family:var(--font-sans);color:var(--c-muted);font-weight:400">
+        <div class="fc-ar-sm" style="font-size:${trSize}px;direction:ltr;font-family:var(--font-sans);color:var(--c-muted);font-weight:400">
           ${c.tr}</div>
         <div class="fc-surah">${c.ref}</div>
       </div>`;
@@ -2169,16 +2192,21 @@ function fcFsRender(){
   if(!flipped){
     const main = fc.showTr ? c.tr : c.ar;
     const isAr = !fc.showTr;
-    inner = `<div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:clamp(42px,8vw,90px);color:var(--c-text)'}">${main}</div>
+    const mainSize=isAr?fcFitClamp(c.ar,28,14,160,18):fcFitClamp(c.tr,18,8,90,30);
+    inner = `<div class="${isAr?'fc-ar':'fc-tr-big'}" style="font-size:${mainSize};${isAr?'':'color:var(--c-text)'}">${main}</div>
              <div class="fc-hint">Tap untuk lihat jawaban</div>`;
   } else {
     if(!fc.showTr){
-      inner = `<div class="fc-ar-sm" style="font-size:clamp(20px,3.5vw,36px);direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted)">${c.ar}</div>
-               <div class="fc-tr-big" style="font-size:clamp(42px,8vw,90px);color:var(--c-green);font-weight:600;margin-top:12px">${c.tr}</div>
+      const arSize=fcFitClamp(c.ar,16,3.5,36,25);
+      const trSize=fcFitClamp(c.tr,18,8,90,30);
+      inner = `<div class="fc-ar-sm" style="font-size:${arSize};direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted)">${c.ar}</div>
+               <div class="fc-tr-big" style="font-size:${trSize};color:var(--c-green);font-weight:600;margin-top:12px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     } else {
-      inner = `<div style="font-family:'Conv_original-hafs';font-size:clamp(72px,14vw,160px);direction:rtl;color:var(--c-green)">${c.ar}</div>
-               <div style="font-size:clamp(13px,2vw,18px);direction:ltr;color:var(--c-muted);margin-top:10px">${c.tr}</div>
+      const arSize=fcFitClamp(c.ar,28,14,160,18);
+      const trSize=fcFitClamp(c.tr,12,2,18,60);
+      inner = `<div style="font-family:'Conv_original-hafs';font-size:${arSize};direction:rtl;color:var(--c-green)">${c.ar}</div>
+               <div style="font-size:${trSize};direction:ltr;color:var(--c-muted);margin-top:10px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     }
   }
