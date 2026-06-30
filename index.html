@@ -2435,7 +2435,7 @@ function _playerPlayCurrent(){
       const nowMs = audio.currentTime * 1000;
       let newSeg = -1;
       for(let i=0;i<segments.length;i++){
-        if(nowMs>=segments[i][1] && nowMs<segments[i][2]){newSeg=i;break;}
+        if(nowMs>=segments[i][1]){ newSeg=i; } else { break; }
       }
       if(newSeg !== activeSegIdx){
         activeSegIdx = newSeg;
