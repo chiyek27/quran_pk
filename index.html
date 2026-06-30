@@ -2315,7 +2315,6 @@ function fcFsNext(){
   if(_fcAudio && !_fcAudio.paused) return;
   _fcStopAudio();
   fc.idx = (fc.idx + 1) % fc.cards.length;
-  fc.flipped = false;
   fcFsRender();
   renderFC();
   _playerFcUpdateUI();
@@ -2325,7 +2324,6 @@ function fcFsPrev(){
   if(_fcAudio && !_fcAudio.paused) return;
   _fcStopAudio();
   fc.idx = (fc.idx - 1 + fc.cards.length) % fc.cards.length;
-  fc.flipped = false;
   fcFsRender();
   renderFC();
   _playerFcUpdateUI();
