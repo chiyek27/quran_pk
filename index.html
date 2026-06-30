@@ -240,6 +240,76 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 .fc-surah{font-size:12px;color:var(--c-muted);margin-top:10px}
 .swipe-hint{font-size:11px;color:var(--c-muted);text-align:center;margin-top:10px;opacity:.7}
 
+/* ── Fullscreen flashcard ── */
+.fc-fullscreen-btn{
+  position:absolute;top:10px;right:10px;
+  width:32px;height:32px;border-radius:8px;
+  border:1px solid var(--c-border);
+  background:var(--c-surface);
+  color:var(--c-muted);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;z-index:2;
+  transition:background .12s,color .12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.fc-fullscreen-btn:active{background:var(--c-green-light);color:var(--c-green)}
+.flashcard{position:relative}
+
+/* ── Fullscreen overlay mode ── */
+#fc-fullscreen-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:var(--c-bg);
+  z-index:9999;
+  flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:20px;
+}
+#fc-fullscreen-overlay.active{display:flex}
+.fc-fs-close{
+  position:fixed;top:14px;right:14px;
+  width:36px;height:36px;border-radius:50%;
+  border:1px solid var(--c-border);
+  background:var(--c-surface);
+  color:var(--c-muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;z-index:10;
+  -webkit-tap-highlight-color:transparent;
+}
+.fc-fs-card{
+  width:100%;max-width:640px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;
+  padding:24px 20px;cursor:pointer;
+  user-select:none;
+  flex:1;
+}
+.fc-fs-card .fc-ar{font-size:clamp(48px,10vw,100px)}
+.fc-fs-card .fc-tr-big{font-size:clamp(28px,5vw,56px)}
+.fc-fs-card .fc-ar-sm{font-size:clamp(22px,4vw,40px)}
+.fc-fs-card .fc-hint{font-size:clamp(13px,2vw,18px);margin-top:20px}
+.fc-fs-card .fc-surah{font-size:clamp(12px,1.8vw,16px);margin-top:14px}
+.fc-fs-nav{
+  display:flex;align-items:center;gap:24px;
+  padding-bottom:20px;
+}
+.fc-fs-btn{
+  width:52px;height:52px;border-radius:50%;
+  border:1px solid var(--c-border);background:var(--c-surface);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--c-text);font-size:22px;
+  -webkit-tap-highlight-color:transparent;
+}
+.fc-fs-btn:active{background:var(--c-green-light)}
+.fc-fs-count{font-size:16px;color:var(--c-muted);font-weight:500;min-width:80px;text-align:center}
+
+@media (orientation:landscape){
+  #fc-fullscreen-overlay{flex-direction:row;padding:0 24px}
+  .fc-fs-card{flex-direction:column;padding:16px 32px}
+  .fc-fs-nav{flex-direction:column;height:100%;padding:20px 0}
+}
+
 
 /* ── Latihan result / progress ── */
 .lat-progress-bar{height:5px;background:var(--c-border);border-radius:3px;margin-bottom:14px;overflow:hidden}
@@ -637,6 +707,17 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
     </div><!-- /fc-settings-body -->
     <div id="fc-output"></div>
   </div>
+<!-- ── Flashcard Fullscreen Overlay ── -->
+<div id="fc-fullscreen-overlay">
+  <button class="fc-fs-close" onclick="fcCloseFullscreen()" title="Tutup">✕</button>
+  <div class="fc-fs-card" id="fc-fs-card" onclick="fcFsFlip()"></div>
+  <div class="fc-fs-nav">
+    <button class="fc-fs-btn" onclick="fcFsPrev()">‹</button>
+    <span class="fc-fs-count" id="fc-fs-count"></span>
+    <button class="fc-fs-btn" onclick="fcFsNext()">›</button>
+  </div>
+</div>
+
 <!-- ── Player Bar ── -->
 <div id="player-bar" style="display:none">
   <!-- Mode Baca -->
@@ -1486,7 +1567,8 @@ function renderFC(){
       <span>${idx+1} / ${cards.length}</span>
       <button class="fc-btn" onclick="fcNext()" aria-label="Berikutnya" ${isPlaying?'disabled':''}>›</button>
     </div>
-    <div class="flashcard${isPlaying?' fc-audio-playing':''}" id="fc-card" ontouchstart="fcTouch(event)" onclick="fcClick(event)">`;
+    <div class="flashcard${isPlaying?' fc-audio-playing':''}" id="fc-card" ontouchstart="fcTouch(event)" onclick="fcClick(event)">
+      <button class="fc-fullscreen-btn" onclick="fcOpenFullscreen(event)" title="Fullscreen">⛶</button>`;
 
   if(!flipped){
     const main=fc.showTr?c.tr:c.ar;
@@ -2046,7 +2128,90 @@ function _fcToggleAuto(){
   _playerFcAuto=!_playerFcAuto;
   _playerFcUpdateUI();
 }
-// ── Baca Player Bar ─────────────────────────────────────────────────────────
+// ── Flashcard Fullscreen ────────────────────────────────────────────────────
+function fcOpenFullscreen(e){
+  e && e.stopPropagation();
+  const overlay = document.getElementById('fc-fullscreen-overlay');
+  overlay.classList.add('active');
+  // Request landscape lock jika tersedia
+  if(screen.orientation && screen.orientation.lock){
+    screen.orientation.lock('landscape').catch(()=>{});
+  }
+  fcFsRender();
+}
+
+function fcCloseFullscreen(){
+  document.getElementById('fc-fullscreen-overlay').classList.remove('active');
+  if(screen.orientation && screen.orientation.unlock){
+    screen.orientation.unlock();
+  }
+}
+
+function fcFsRender(){
+  if(!fc || !fc.cards || !fc.cards.length) return;
+  const {cards, idx, flipped} = fc;
+  const c = cards[idx];
+  const cardEl = document.getElementById('fc-fs-card');
+  const countEl = document.getElementById('fc-fs-count');
+  countEl.textContent = `${idx+1} / ${cards.length}`;
+
+  let inner = '';
+  if(!flipped){
+    const main = fc.showTr ? c.tr : c.ar;
+    const isAr = !fc.showTr;
+    inner = `<div class="${isAr?'fc-ar':'fc-tr-big'}" style="${isAr?'':'font-size:clamp(28px,5vw,56px);color:var(--c-text)'}">${main}</div>
+             <div class="fc-hint">Tap untuk lihat jawaban</div>`;
+  } else {
+    if(!fc.showTr){
+      inner = `<div class="fc-ar-sm" style="font-size:clamp(20px,3.5vw,36px);direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted)">${c.ar}</div>
+               <div class="fc-tr-big" style="font-size:clamp(28px,5vw,54px);color:var(--c-green);font-weight:600;margin-top:12px">${c.tr}</div>
+               <div class="fc-surah">${c.ref}</div>`;
+    } else {
+      inner = `<div style="font-family:'Conv_original-hafs';font-size:clamp(48px,9vw,96px);direction:rtl;color:var(--c-green)">${c.ar}</div>
+               <div style="font-size:clamp(13px,2vw,18px);direction:ltr;color:var(--c-muted);margin-top:10px">${c.tr}</div>
+               <div class="fc-surah">${c.ref}</div>`;
+    }
+  }
+  cardEl.innerHTML = inner;
+}
+
+function fcFsFlip(){
+  fc.flipped = !fc.flipped;
+  fcFsRender();
+  renderFC(); // sync kartu utama juga
+}
+
+function fcFsNext(){
+  _fcStopAudio();
+  fc.idx = (fc.idx + 1) % fc.cards.length;
+  fc.flipped = false;
+  fcFsRender();
+  renderFC();
+  _playerFcUpdateUI();
+}
+
+function fcFsPrev(){
+  _fcStopAudio();
+  fc.idx = (fc.idx - 1 + fc.cards.length) % fc.cards.length;
+  fc.flipped = false;
+  fcFsRender();
+  renderFC();
+  _playerFcUpdateUI();
+}
+
+// Tutup fullscreen jika menekan Escape
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape') fcCloseFullscreen();
+});
+
+// Sync fullscreen saat kartu berpindah dari luar
+const _origRenderFC = renderFC;
+renderFC = function(){
+  _origRenderFC();
+  const overlay = document.getElementById('fc-fullscreen-overlay');
+  if(overlay && overlay.classList.contains('active')) fcFsRender();
+};
+// ───────────────────────────────────────────────────────────────────────────
 let _playerAyat  = 0;    // ayat number aktif
 let _playerAuto  = false;
 let _playerPlaying = false;
