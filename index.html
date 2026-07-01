@@ -602,14 +602,14 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
     <div id="baca-settings" class="settings-card">
       <div class="settings-row">
         <label>Surat</label>
-        <select id="sel-surah" onchange="updateAyatRange();renderBaca()"></select>
+        <select id="sel-surah" onchange="onBacaSurahChange()"></select>
       </div>
       <div class="settings-row">
         <label>Ayat</label>
         <div class="ayat-range">
-          <select id="ayat-from" onchange="renderBaca()"></select>
+          <select id="ayat-from" onchange="onBacaAyatChange()"></select>
           <span class="ayat-sep">s/d</span>
-          <select id="ayat-to" onchange="renderBaca()"></select>
+          <select id="ayat-to" onchange="onBacaAyatChange()"></select>
         </div>
       </div>
       <div class="settings-row">
@@ -746,7 +746,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
       </div>
       <div class="settings-row" id="fc-surah-row">
         <label>Surat</label>
-        <select id="fc-surah" onchange="fcUpdateRange()"></select>
+        <select id="fc-surah" onchange="onFcSurahChange()"></select>
       </div>
       <div class="settings-row">
         <label>Level kartu</label>
@@ -758,9 +758,9 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
       <div class="settings-row" id="fc-ayat-row">
         <label>Ayat</label>
         <div class="ayat-range">
-          <select id="fc-from" onchange="updateFcJumlah()"></select>
+          <select id="fc-from" onchange="onFcAyatChange()"></select>
           <span class="ayat-sep">s/d</span>
-          <select id="fc-to" onchange="updateFcJumlah()"></select>
+          <select id="fc-to" onchange="onFcAyatChange()"></select>
         </div>
       </div>
       <div class="settings-row">
@@ -874,6 +874,71 @@ function buildAyatOptions(fromId,toId,jml,fromVal,toVal){
 function updateAyatRange(){
   const s=DATA[document.getElementById('sel-surah').value];
   buildAyatOptions('ayat-from','ayat-to',s.jml,1,s.jml);
+}
+
+// ── Sinkronisasi pilihan Surat & Ayat antara menu Baca dan Flashcard ──────────
+// Agar pilihan "Surat" dan rentang "Ayat" di kedua menu selalu sama & langsung
+// sinkron begitu salah satunya diubah (mirip sinkronisasi Qari yang sudah ada).
+let _syncingSurahAyat = false;
+
+function onBacaSurahChange(){
+  updateAyatRange();
+  renderBaca();
+  if(_syncingSurahAyat) return;
+  _syncingSurahAyat = true;
+  const sId = document.getElementById('sel-surah').value;
+  const fcSel = document.getElementById('fc-surah');
+  if(fcSel && fcSel.value !== sId){
+    fcSel.value = sId;
+    if (typeof fcUpdateRange === 'function') fcUpdateRange();
+  }
+  _syncingSurahAyat = false;
+}
+
+function onBacaAyatChange(){
+  renderBaca();
+  if(_syncingSurahAyat) return;
+  _syncingSurahAyat = true;
+  const fr = document.getElementById('ayat-from').value;
+  const to = document.getElementById('ayat-to').value;
+  const fcFrom = document.getElementById('fc-from');
+  const fcTo   = document.getElementById('fc-to');
+  if(fcFrom && fcTo){
+    if(fcFrom.value !== fr) fcFrom.value = fr;
+    if(fcTo.value   !== to) fcTo.value   = to;
+    if (typeof updateFcJumlah === 'function') updateFcJumlah();
+  }
+  _syncingSurahAyat = false;
+}
+
+function onFcSurahChange(){
+  if (typeof fcUpdateRange === 'function') fcUpdateRange();
+  if(_syncingSurahAyat) return;
+  _syncingSurahAyat = true;
+  const sId = document.getElementById('fc-surah').value;
+  const selSurah = document.getElementById('sel-surah');
+  if(selSurah && selSurah.value !== sId){
+    selSurah.value = sId;
+    updateAyatRange();
+    renderBaca();
+  }
+  _syncingSurahAyat = false;
+}
+
+function onFcAyatChange(){
+  if (typeof updateFcJumlah === 'function') updateFcJumlah();
+  if(_syncingSurahAyat) return;
+  _syncingSurahAyat = true;
+  const fr = document.getElementById('fc-from').value;
+  const to = document.getElementById('fc-to').value;
+  const fromEl = document.getElementById('ayat-from');
+  const toEl   = document.getElementById('ayat-to');
+  if(fromEl && toEl){
+    if(fromEl.value !== fr) fromEl.value = fr;
+    if(toEl.value   !== to) toEl.value   = to;
+    renderBaca();
+  }
+  _syncingSurahAyat = false;
 }
 
 let latOrder='urut';
