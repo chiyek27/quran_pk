@@ -1961,6 +1961,47 @@ function _fcSyncToWord(sId, ayatN, wIdx) {
   }
 }
 
+// Sinkronkan tampilan mode "Baca" agar mengikuti kartu/kata yang sedang diputar di Flashcard.
+// Hanya berlaku saat urutan Flashcard = "urut" (mode "acak" tidak relevan untuk disinkronkan ke Baca).
+function _bacaSyncToCard(sId, ayatN, wIdx) {
+  if (fcOrder !== 'urut') return;
+  sId = +sId; ayatN = +ayatN;
+  const selSurah = document.getElementById('sel-surah');
+  const fromEl   = document.getElementById('ayat-from');
+  const toEl     = document.getElementById('ayat-to');
+  if (!selSurah || !fromEl || !toEl || !DATA[sId]) return;
+
+  let changed = false;
+  if (+selSurah.value !== sId) {
+    selSurah.value = sId;
+    updateAyatRange();
+    changed = true;
+  } else {
+    const fr = +fromEl.value, to = +toEl.value;
+    if (ayatN < fr || ayatN > to) {
+      buildAyatOptions('ayat-from', 'ayat-to', DATA[sId].jml, 1, DATA[sId].jml);
+      changed = true;
+    }
+  }
+  if (changed) renderBaca();
+
+  document.querySelectorAll('.kata-item.tts-active').forEach(el => el.classList.remove('tts-active'));
+  const numEl = document.querySelector(`.kata-item-num[data-sidx="${sId}"][data-ayat="${ayatN}"]`);
+  if (!numEl) return;
+  if (wIdx) {
+    const grid = numEl.parentElement;
+    const kataItems = Array.from(grid.querySelectorAll('.kata-item:not(.kata-item-num)'));
+    const wi = +wIdx - 1;
+    if (kataItems[wi]) kataItems[wi].classList.add('tts-active');
+  } else {
+    numEl.classList.add('tts-active');
+  }
+  if (typeof activeTab !== 'undefined' && activeTab === 'baca') {
+    const block = numEl.closest('.ayat-block');
+    if (block) block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 function _stopRecAudio() {
   if (_recAudio) {
     _recAudio.pause();
@@ -2074,6 +2115,7 @@ function _fcStopAudio(){
     _fcAudio.src='';
     _fcAudio=null;
   }
+  document.querySelectorAll('.kata-item.tts-active').forEach(el=>el.classList.remove('tts-active'));
 }
 
 function onFcQariChange(){
@@ -2139,6 +2181,7 @@ function _fcPlayCurrent(){
         audio.currentTime=0;
         audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
         renderFC(); _playerFcUpdateUI();
+        _bacaSyncToCard(c.sId, c.ayatN);
       });
       audio.addEventListener('ended',()=>{
         _fcAudio=null; renderFC(); _playerFcUpdateUI();
@@ -2190,6 +2233,8 @@ function _fcPlayCurrent(){
       fc.idx = entry2.fcIdx;
       renderFC();
       _playerFcUpdateUI();
+      const cc = fc.cards[entry2.fcIdx];
+      if(cc) _bacaSyncToCard(cc.sId, cc.ayatN, cc.wIdx);
     }
 
     audio.addEventListener('loadedmetadata',()=>{
