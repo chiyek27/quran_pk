@@ -1843,6 +1843,8 @@ function switchTab(t){
     if(t==='flashcard' && _recActiveWord){
       _fcSyncToWord(_recActiveWord.sId, _recActiveWord.ayatN, _recActiveWord.wIdx);
     }
+    // Pastikan kartu Flashcard yang tampil selalu sesuai fc.idx terkini (walau audio pemicunya sudah selesai)
+    if(t==='flashcard' && typeof renderFC==='function') renderFC();
     // Samakan tampilan player-bar (Baca vs Flashcard) dengan tab yang baru aktif
     if(t==='flashcard' && typeof _playerFcUpdateUI==='function') _playerFcUpdateUI();
     if(t==='baca' && typeof _playerCheckShow==='function') _playerCheckShow();
@@ -1892,6 +1894,7 @@ let activeTab='baca';
 // terpanggil sejak inisialisasi awal halaman (sebelum baris deklarasi ini jika ditaruh di bawah).
 let _playerSurah = 0;    // surah number aktif untuk player-bar
 let _playerAyat  = 0;    // ayat number aktif
+let _playerWordIdx = 1;  // index kata aktif (1-based) untuk tampilan player-bar mode Baca
 let _playerAuto  = false;
 let _playerPlaying = false;
 function getPrefix(tab){return tab==='latihan'?'lat':tab==='flashcard'?'fc':'baca';}
@@ -2002,10 +2005,20 @@ function _clearRecActive() {
   _recActiveWord = null;
 }
 
-// Samakan kartu flashcard dengan kata yang sedang dibaca di tab Baca
+// Samakan kartu flashcard + player-bar mode Baca dengan kata yang sedang dibaca/diputar.
+// Fungsi ini dipanggil dari semua jalur audio Baca (tombol player, klik nomor ayat, klik kata),
+// jadi menjadi titik tunggal untuk menyinkronkan tampilan player-ui Baca maupun kartu Flashcard.
 function _fcSyncToWord(sId, ayatN, wIdx) {
-  if (!fc || !fc.cards || !fc.cards.length) return;
   sId = +sId; ayatN = +ayatN;
+
+  // Sinkronkan status player-bar mode Baca (kata aktif, ref ayat, status playing)
+  _playerSurah   = sId;
+  _playerAyat    = ayatN;
+  _playerWordIdx = wIdx ? +wIdx : 1;
+  _playerPlaying = true;
+  if (typeof _playerUpdateUI === 'function') _playerUpdateUI();
+
+  if (!fc || !fc.cards || !fc.cards.length) return;
   let idx = fc.cards.findIndex(c => +c.sId === sId && +c.ayatN === ayatN && (wIdx ? +c.wIdx === +wIdx : true));
   if (idx < 0) {
     // fallback: kartu per-ayat (tanpa wIdx) pada ayat yang sama
@@ -2048,10 +2061,11 @@ function _bacaSyncToCard(sId, ayatN, wIdx) {
   document.querySelectorAll('.kata-item.tts-active').forEach(el => el.classList.remove('tts-active'));
   const numEl = document.querySelector(`.kata-item-num[data-sidx="${sId}"][data-ayat="${ayatN}"]`);
 
-  // Samakan juga status player-bar mode Baca (nama surah, label ayat, ikon play)
+  // Samakan juga status player-bar mode Baca (kata aktif, ref ayat, ikon play)
   // agar saat pindah ke tab Baca tampilannya sudah sesuai dengan yang sedang diputar dari Flashcard.
-  _playerSurah = sId;
-  _playerAyat  = ayatN;
+  _playerSurah   = sId;
+  _playerAyat    = ayatN;
+  _playerWordIdx = wIdx ? +wIdx : 1;
   _playerPlaying = true;
   if (typeof _playerUpdateUI === 'function') _playerUpdateUI();
   if (typeof activeTab !== 'undefined' && activeTab === 'baca' && typeof _playerCheckShow === 'function') {
@@ -2085,6 +2099,10 @@ function _stopRecAudio() {
     _recAudio = null;
   }
   _clearRecActive();
+  if (typeof _playerPlaying !== 'undefined' && _playerPlaying) {
+    _playerPlaying = false;
+    if (typeof _playerUpdateUI === 'function') _playerUpdateUI();
+  }
 }
 
 // Dipanggil saat kata-item diklik → putar satu kata saja (seek ke segmennya)
@@ -2537,8 +2555,18 @@ function _playerUpdateUI(){
   const s = DATA[_playerSurah];
   if(!s || !_playerSurah){ bar.style.display='none'; return; }
   bar.style.display='flex';
-  document.getElementById('player-fc-label').textContent = s.name;
-  document.getElementById('player-fc-ref').textContent = 'Ayat ' + _playerAyat;
+
+  // Tampilkan kata yang sedang aktif (default: kata pertama ayat ini), format disamakan dengan Flashcard
+  let wIdx = _playerWordIdx || 1;
+  let wordAr = '';
+  const words = (typeof KATA_DATA !== 'undefined' && KATA_DATA[_playerSurah]) ? KATA_DATA[_playerSurah][_playerAyat] : null;
+  if (words && words.length) {
+    if (wIdx < 1 || wIdx > words.length) wIdx = 1;
+    wordAr = words[wIdx-1] ? words[wIdx-1].ar : '';
+  }
+  const label = wordAr || s.name;
+  document.getElementById('player-fc-label').textContent = label.length>22 ? label.slice(0,20)+'…' : label;
+  document.getElementById('player-fc-ref').textContent = 'Q.S ' + s.name + ' : ' + _playerAyat;
   // play/pause icon
   const playBtn = document.getElementById('player-fc-play');
   playBtn.innerHTML = _playerPlaying ? '&#9646;&#9646;' : '&#9654;';
@@ -2565,6 +2593,7 @@ function _playerScrollToAyat(){
 function _playerPlayCurrent(){
   _stopRecAudio();
   _playerPlaying = false;
+  _playerWordIdx = 1;
   _playerUpdateUI();
 
   const file = _currentQariFile();
@@ -2646,6 +2675,7 @@ function _playerPlayCurrent(){
 function _playerSyncFrom(sId, ayatN){
   _playerSurah = sId;
   _playerAyat  = ayatN;
+  _playerWordIdx = 1;
   _playerPlaying = true;
   _playerUpdateUI();
 }
@@ -2672,6 +2702,7 @@ function playerPrev(){
   const idx = list.indexOf(_playerAyat);
   if(idx > 0){
     _playerAyat = list[idx-1];
+    _playerWordIdx = 1;
     _playerScrollToAyat();
     _playerPlayCurrent();
   }
@@ -2682,6 +2713,7 @@ function playerNext(){
   const idx = list.indexOf(_playerAyat);
   if(idx >= 0 && idx < list.length-1){
     _playerAyat = list[idx+1];
+    _playerWordIdx = 1;
     _playerScrollToAyat();
     _playerPlayCurrent();
   } else {
@@ -2701,6 +2733,7 @@ const _origPlayAyatAudio = playAyatAudio;
 playAyatAudio = function(numEl){
   _playerSurah = +numEl.dataset.sidx;
   _playerAyat  = +numEl.dataset.ayat;
+  _playerWordIdx = 1;
   _origPlayAyatAudio(numEl);
   // Sinkron state setelah audio dimulai
   setTimeout(()=>{
@@ -2741,9 +2774,15 @@ onQariChange = function(){
 const _origRenderBaca = renderBaca;
 renderBaca = function(){
   _origRenderBaca();
+  const prevSurah = _playerSurah;
   _playerSurah = +document.getElementById('sel-surah').value;
   const list = _playerGetAyatList();
-  if(!list.includes(_playerAyat)) _playerAyat = list[0] || 1;
+  if(!list.includes(_playerAyat)){
+    _playerAyat = list[0] || 1;
+    _playerWordIdx = 1;
+  } else if(prevSurah !== _playerSurah){
+    _playerWordIdx = 1;
+  }
   _playerCheckShow();
 };
 
