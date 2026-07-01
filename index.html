@@ -812,32 +812,18 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   </div>
 </div>
 
-<!-- ── Player Bar ── -->
+<!-- ── Player Bar (tampilan & fungsi disamakan: mengacu pada UI Flashcard, dipakai bersama untuk Baca & Flashcard) ── -->
 <div id="player-bar" style="display:none">
-  <!-- Mode Baca -->
-  <div id="player-baca-ui" style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px">
-    <div class="player-info">
-      <span class="player-surah" id="player-surah-name"></span>
-      <span class="player-ayat-label" id="player-ayat-label"></span>
-    </div>
-    <div class="player-controls">
-      <button class="player-btn" id="player-prev" onclick="playerPrev()" title="Ayat sebelumnya">&#9664;&#9664;</button>
-      <button class="player-btn player-btn-main" id="player-play" onclick="playerPlayPause()" title="Play/Pause">&#9654;</button>
-      <button class="player-btn" id="player-next" onclick="playerNext()" title="Ayat berikutnya">&#9654;&#9654;</button>
-      <button class="player-btn player-btn-auto" id="player-auto" onclick="playerToggleAuto()" title="Auto-play">&#8635;</button>
-    </div>
-  </div>
-  <!-- Mode Flashcard -->
-  <div id="player-fc-ui" style="display:none;align-items:center;justify-content:space-between;width:100%;gap:10px">
+  <div id="player-ui" style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px">
     <div class="player-info">
       <span class="player-surah" id="player-fc-label"></span>
       <span class="player-ayat-label" id="player-fc-ref"></span>
     </div>
     <div class="player-controls">
-      <button class="player-btn" id="player-fc-prev" onclick="_fcStop_andPrev()" title="Kartu sebelumnya">&#9664;&#9664;</button>
-      <button class="player-btn player-btn-main" id="player-fc-play" onclick="fcToggleAudio()" title="Play/Stop">&#9654;</button>
-      <button class="player-btn" id="player-fc-next" onclick="_fcStop_andNext()" title="Kartu berikutnya">&#9654;&#9654;</button>
-      <button class="player-btn player-btn-auto" id="player-fc-auto" onclick="_fcToggleAuto()" title="Auto-play">&#8635;</button>
+      <button class="player-btn" id="player-fc-prev" onclick="playerBarPrev()" title="Sebelumnya">&#9664;&#9664;</button>
+      <button class="player-btn player-btn-main" id="player-fc-play" onclick="playerBarPlayPause()" title="Play/Pause">&#9654;</button>
+      <button class="player-btn" id="player-fc-next" onclick="playerBarNext()" title="Berikutnya">&#9654;&#9654;</button>
+      <button class="player-btn player-btn-auto" id="player-fc-auto" onclick="playerBarAuto()" title="Auto-play">&#8635;</button>
     </div>
   </div>
 </div>
@@ -2314,13 +2300,8 @@ let _playerFcAuto = false;
 
 function _playerFcUpdateUI(){
   const bar = document.getElementById('player-bar');
-  const fcUI = document.getElementById('player-fc-ui');
-  const bacaUI = document.getElementById('player-baca-ui');
 
-  if(activeTab !== 'flashcard'){
-    fcUI.style.display='none';
-    return;
-  }
+  if(activeTab !== 'flashcard') return;
 
   const fcFile = (document.getElementById('fc-qari')||{}).value||'';
   if(!fcFile || fc.cards.length===0){
@@ -2329,8 +2310,6 @@ function _playerFcUpdateUI(){
   }
 
   bar.style.display='flex';
-  bacaUI.style.display='none';
-  fcUI.style.display='flex';
 
   const c = fc.cards[fc.idx];
   const isPlaying = !!_fcAudio && !_fcAudio.paused;
@@ -2361,6 +2340,26 @@ function _fcStop_andNext(){
 function _fcToggleAuto(){
   _playerFcAuto=!_playerFcAuto;
   _playerFcUpdateUI();
+}
+
+// ── Dispatcher tombol Player Bar (satu UI & satu fungsi untuk Baca maupun Flashcard) ──
+// Saat tab aktif = flashcard, kontrol mengarah ke logika kartu flashcard.
+// Selain itu (baca/latihan), kontrol mengarah ke logika audio ayat mode Baca.
+function playerBarPrev(){
+  if(activeTab==='flashcard') _fcStop_andPrev();
+  else playerPrev();
+}
+function playerBarPlayPause(){
+  if(activeTab==='flashcard') fcToggleAudio();
+  else playerPlayPause();
+}
+function playerBarNext(){
+  if(activeTab==='flashcard') _fcStop_andNext();
+  else playerNext();
+}
+function playerBarAuto(){
+  if(activeTab==='flashcard') _fcToggleAuto();
+  else playerToggleAuto();
 }
 // ── Flashcard Fullscreen ────────────────────────────────────────────────────
 function fcOpenFullscreen(e){
@@ -2469,22 +2468,23 @@ function _playerGetAyatList(){
 
 function _playerUpdateUI(){
   const bar = document.getElementById('player-bar');
+  if(activeTab === 'flashcard') return; // biarkan _playerFcUpdateUI yang mengatur tampilan
   const s = DATA[_playerSurah];
   if(!s || !_playerSurah){ bar.style.display='none'; return; }
   bar.style.display='flex';
-  document.getElementById('player-surah-name').textContent = s.name;
-  document.getElementById('player-ayat-label').textContent = 'Ayat ' + _playerAyat;
+  document.getElementById('player-fc-label').textContent = s.name;
+  document.getElementById('player-fc-ref').textContent = 'Ayat ' + _playerAyat;
   // play/pause icon
-  const playBtn = document.getElementById('player-play');
+  const playBtn = document.getElementById('player-fc-play');
   playBtn.innerHTML = _playerPlaying ? '&#9646;&#9646;' : '&#9654;';
   playBtn.classList.toggle('playing', _playerPlaying);
   // auto btn
-  document.getElementById('player-auto').classList.toggle('on', _playerAuto);
+  document.getElementById('player-fc-auto').classList.toggle('on', _playerAuto);
   // prev/next disabled state
   const list = _playerGetAyatList();
   const idx = list.indexOf(_playerAyat);
-  document.getElementById('player-prev').disabled = idx <= 0;
-  document.getElementById('player-next').disabled = idx < 0 || idx >= list.length - 1;
+  document.getElementById('player-fc-prev').disabled = idx <= 0;
+  document.getElementById('player-fc-next').disabled = idx < 0 || idx >= list.length - 1;
 }
 
 function _playerScrollToAyat(){
@@ -2647,20 +2647,14 @@ playAyatAudio = function(numEl){
 // Tampilkan player bar saat tab baca aktif dan ada qari dipilih
 function _playerCheckShow(){
   const bar = document.getElementById('player-bar');
-  const fcUI = document.getElementById('player-fc-ui');
-  const bacaUI = document.getElementById('player-baca-ui');
 
   if(activeTab === 'flashcard'){
     // Serahkan ke _playerFcUpdateUI
-    bacaUI.style.display='none';
     _playerFcUpdateUI();
     return;
   }
 
-  // Mode Baca
-  fcUI.style.display='none';
-  bacaUI.style.display='flex';
-
+  // Mode Baca (juga berlaku saat tab Latihan aktif)
   const file = _currentQariFile();
   if(!file){ bar.style.display='none'; return; }
   if(!_playerSurah){
