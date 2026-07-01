@@ -1788,6 +1788,10 @@ function switchTab(t){
       document.getElementById('content-'+x).style.display=x===t?'block':'none';
       document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
     });
+    // Jika pindah ke tab flashcard sementara audio Baca masih berjalan, samakan tampilan kartu
+    if(t==='flashcard' && _recActiveWord){
+      _fcSyncToWord(_recActiveWord.sId, _recActiveWord.ayatN, _recActiveWord.wIdx);
+    }
     const prefix=getPrefix(t);
     const body=document.getElementById(prefix+'-settings-body');
     if(body && !body.classList.contains('open')){
@@ -1930,10 +1934,31 @@ function onQariChange() {
 // Audio instance aktif
 let _recAudio = null;
 let _recActiveEl = null;
+let _recActiveWord = null; // {sId, ayatN, wIdx} kata yang sedang diputar dari tab Baca
 
 function _clearRecActive() {
   document.querySelectorAll('.kata-item.tts-active').forEach(el => el.classList.remove('tts-active'));
   _recActiveEl = null;
+  _recActiveWord = null;
+}
+
+// Samakan kartu flashcard dengan kata yang sedang dibaca di tab Baca
+function _fcSyncToWord(sId, ayatN, wIdx) {
+  if (!fc || !fc.cards || !fc.cards.length) return;
+  sId = +sId; ayatN = +ayatN;
+  let idx = fc.cards.findIndex(c => +c.sId === sId && +c.ayatN === ayatN && (wIdx ? +c.wIdx === +wIdx : true));
+  if (idx < 0) {
+    // fallback: kartu per-ayat (tanpa wIdx) pada ayat yang sama
+    idx = fc.cards.findIndex(c => +c.sId === sId && +c.ayatN === ayatN);
+  }
+  if (idx >= 0 && idx !== fc.idx) {
+    fc.idx = idx;
+    fc.flipped = false;
+    if (typeof activeTab !== 'undefined' && activeTab === 'flashcard') {
+      renderFC();
+      _playerFcUpdateUI();
+    }
+  }
 }
 
 function _stopRecAudio() {
@@ -1966,6 +1991,8 @@ function playKataAudio(el) {
     const startMs = seg[1], endMs = seg[2];
     el.classList.add('tts-active');
     _recActiveEl = el;
+    _recActiveWord = { sId, ayatN, wIdx };
+    _fcSyncToWord(sId, ayatN, wIdx);
 
     const audio = new Audio(entry.audio_url);
     _recAudio = audio;
@@ -2027,6 +2054,9 @@ function playAyatAudio(numEl) {
         if (newSegIdx >= 0) {
           const wi = segments[newSegIdx][0] - 1;
           if (kataItems[wi]) kataItems[wi].classList.add('tts-active');
+          const activeWidx = segments[newSegIdx][0];
+          _recActiveWord = { sId, ayatN, wIdx: activeWidx };
+          _fcSyncToWord(sId, ayatN, activeWidx);
         }
       }
     });
@@ -2454,6 +2484,9 @@ function _playerPlayCurrent(){
         if(newSeg>=0){
           const wi = segments[newSeg][0]-1;
           if(kataItems[wi]) kataItems[wi].classList.add('tts-active');
+          const activeWidx = segments[newSeg][0];
+          _recActiveWord = { sId, ayatN, wIdx: activeWidx };
+          _fcSyncToWord(sId, ayatN, activeWidx);
         }
       }
     });
