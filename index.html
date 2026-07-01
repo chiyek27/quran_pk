@@ -1792,6 +1792,9 @@ function switchTab(t){
     if(t==='flashcard' && _recActiveWord){
       _fcSyncToWord(_recActiveWord.sId, _recActiveWord.ayatN, _recActiveWord.wIdx);
     }
+    // Samakan tampilan player-bar (Baca vs Flashcard) dengan tab yang baru aktif
+    if(t==='flashcard' && typeof _playerFcUpdateUI==='function') _playerFcUpdateUI();
+    if(t==='baca' && typeof _playerCheckShow==='function') _playerCheckShow();
     const prefix=getPrefix(t);
     const body=document.getElementById(prefix+'-settings-body');
     if(body && !body.classList.contains('open')){
@@ -1987,18 +1990,34 @@ function _bacaSyncToCard(sId, ayatN, wIdx) {
 
   document.querySelectorAll('.kata-item.tts-active').forEach(el => el.classList.remove('tts-active'));
   const numEl = document.querySelector(`.kata-item-num[data-sidx="${sId}"][data-ayat="${ayatN}"]`);
+
+  // Samakan juga status player-bar mode Baca (nama surah, label ayat, ikon play)
+  // agar saat pindah ke tab Baca tampilannya sudah sesuai dengan yang sedang diputar dari Flashcard.
+  _playerSurah = sId;
+  _playerAyat  = ayatN;
+  _playerPlaying = true;
+  if (typeof _playerUpdateUI === 'function') _playerUpdateUI();
+  if (typeof activeTab !== 'undefined' && activeTab === 'baca' && typeof _playerCheckShow === 'function') {
+    _playerCheckShow();
+  }
+
   if (!numEl) return;
+  let activeEl = numEl;
   if (wIdx) {
     const grid = numEl.parentElement;
     const kataItems = Array.from(grid.querySelectorAll('.kata-item:not(.kata-item-num)'));
     const wi = +wIdx - 1;
-    if (kataItems[wi]) kataItems[wi].classList.add('tts-active');
+    if (kataItems[wi]) {
+      kataItems[wi].classList.add('tts-active');
+      activeEl = kataItems[wi];
+    }
   } else {
     numEl.classList.add('tts-active');
   }
+  // Fokuskan ke kata/nomor ayat yang aktif (bukan seluruh blok ayat), supaya tetap
+  // kelihatan meskipun ayat tersebut punya banyak kata-item yang melebihi tinggi layar.
   if (typeof activeTab !== 'undefined' && activeTab === 'baca') {
-    const block = numEl.closest('.ayat-block');
-    if (block) block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
@@ -2116,6 +2135,10 @@ function _fcStopAudio(){
     _fcAudio=null;
   }
   document.querySelectorAll('.kata-item.tts-active').forEach(el=>el.classList.remove('tts-active'));
+  if(fcOrder==='urut' && typeof _playerPlaying!=='undefined' && _playerPlaying){
+    _playerPlaying = false;
+    if (typeof _playerUpdateUI === 'function') _playerUpdateUI();
+  }
 }
 
 function onFcQariChange(){
