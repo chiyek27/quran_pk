@@ -1546,6 +1546,7 @@ function checkAnswer(i,chosen,correct){
 
 // FLASHCARD
 let fc={cards:[],idx:0,flipped:false,done:[]};
+let _fcAudio = null; // dideklarasikan di awal agar tersedia untuk renderFC()/startFlashcard() saat inisialisasi halaman
 let fcOrder='urut';
 // _fcFlipState: true = sedang tampil sisi balik (back), false = depan (front)
 // Saat tap flip kartu → catat; saat pindah kartu otomatis (audio) → pertahankan state ini
@@ -2037,8 +2038,6 @@ function playAyatAudio(numEl) {
 
 
 // ── Flashcard Audio ─────────────────────────────────────────────────────────
-let _fcAudio = null;
-
 function _fcStopAudio(){
   if(_fcAudio){
     _fcAudio.pause();
@@ -2354,6 +2353,7 @@ renderFC = function(){
   if(overlay && overlay.classList.contains('active')) fcFsRender();
 };
 // ───────────────────────────────────────────────────────────────────────────
+let _playerSurah = 0;    // surah number aktif untuk player-bar
 let _playerAyat  = 0;    // ayat number aktif
 let _playerAuto  = false;
 let _playerPlaying = false;
