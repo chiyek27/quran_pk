@@ -1917,6 +1917,10 @@ function onQariChange() {
   // Sinkron ke fc-qari
   const fcSel = document.getElementById('fc-qari');
   if(fcSel && fcSel.value !== file){ fcSel.value = file; }
+  // Sinkron audio: hentikan audio flashcard yang sedang jalan & refresh UI-nya
+  _fcStopAudio();
+  if (typeof renderFC === 'function') renderFC();
+  if (typeof _playerFcUpdateUI === 'function') _playerFcUpdateUI();
 }
 
 // Audio instance aktif
@@ -2049,6 +2053,10 @@ function onFcQariChange(){
   if(bacaSel && bacaSel.value !== file){ bacaSel.value = file; }
   renderFC();
   _playerFcUpdateUI();
+  // Sinkron audio: hentikan audio baca yang sedang jalan & refresh UI-nya
+  _stopRecAudio();
+  _playerPlaying = false;
+  if (typeof _playerUpdateUI === 'function') _playerUpdateUI();
 }
 
 function fcToggleAudio(){
