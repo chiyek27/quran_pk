@@ -1837,6 +1837,12 @@ function switchTab(t){
 }
 
 let activeTab='baca';
+// Deklarasi lebih awal agar aman diakses oleh _fcStopAudio()/_bacaSyncToCard() yang bisa
+// terpanggil sejak inisialisasi awal halaman (sebelum baris deklarasi ini jika ditaruh di bawah).
+let _playerSurah = 0;    // surah number aktif untuk player-bar
+let _playerAyat  = 0;    // ayat number aktif
+let _playerAuto  = false;
+let _playerPlaying = false;
 function getPrefix(tab){return tab==='latihan'?'lat':tab==='flashcard'?'fc':'baca';}
 function toggleActiveSettings(){
   const prefix=getPrefix(activeTab);
@@ -2451,10 +2457,6 @@ renderFC = function(){
   if(overlay && overlay.classList.contains('active')) fcFsRender();
 };
 // ───────────────────────────────────────────────────────────────────────────
-let _playerSurah = 0;    // surah number aktif untuk player-bar
-let _playerAyat  = 0;    // ayat number aktif
-let _playerAuto  = false;
-let _playerPlaying = false;
 
 function _playerGetAyatList(){
   const sId = _playerSurah;
