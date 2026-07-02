@@ -2147,9 +2147,10 @@ function playKataAudio(el) {
     _recAudio = audio;
     audio.addEventListener('loadedmetadata', () => {
       audio.currentTime = startMs / 1000;
-      audio.play().catch(() => _stopRecAudio());
+      audio.play().catch(() => { if (_recAudio === audio) _stopRecAudio(); });
     });
     audio.addEventListener('timeupdate', () => {
+      if (_recAudio !== audio) return; // audio ini sudah digantikan, abaikan event basi
       if (audio.currentTime * 1000 >= endMs) {
         audio.pause();
         _clearRecActive();
@@ -2158,7 +2159,11 @@ function playKataAudio(el) {
         if (_playerAutoOn) setTimeout(() => playerStepWord(1), 250);
       }
     });
-    audio.addEventListener('error', () => _stopRecAudio());
+    // Guard: audio.src='' saat _stopRecAudio() dipanggil dari kata lain akan memicu
+    // event 'error' ini secara asynchronous. Tanpa pengecekan identitas, error basi
+    // dari kata SEBELUMNYA bisa menghentikan audio kata BARU yang baru saja mulai
+    // diputar (itulah sebab suara terasa "kepotong" & highlight terasa "loncat-loncat").
+    audio.addEventListener('error', () => { if (_recAudio === audio) _stopRecAudio(); });
   });
 }
 
@@ -2193,10 +2198,11 @@ function playAyatAudio(numEl) {
 
     audio.addEventListener('loadedmetadata', () => {
       audio.currentTime = 0;
-      audio.play().catch(() => _stopRecAudio());
+      audio.play().catch(() => { if (_recAudio === audio) _stopRecAudio(); });
     });
 
     audio.addEventListener('timeupdate', () => {
+      if (_recAudio !== audio) return; // event basi dari audio yang sudah digantikan
       const nowMs = audio.currentTime * 1000;
       let newSegIdx = -1;
       for (let i = 0; i < segments.length; i++) {
@@ -2215,8 +2221,8 @@ function playAyatAudio(numEl) {
       }
     });
 
-    audio.addEventListener('ended', () => { _clearRecActive(); _recAudio = null; });
-    audio.addEventListener('error', () => _stopRecAudio());
+    audio.addEventListener('ended', () => { if (_recAudio === audio) { _clearRecActive(); _recAudio = null; } });
+    audio.addEventListener('error', () => { if (_recAudio === audio) _stopRecAudio(); });
   });
 }
 
@@ -2299,15 +2305,16 @@ function _fcPlayCurrent(){
       _fcAudio = audio;
       audio.addEventListener('loadedmetadata',()=>{
         audio.currentTime=0;
-        audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+        audio.play().catch(()=>{ if(_fcAudio===audio){ _fcAudio=null; renderFC(); _playerFcUpdateUI(); } });
         renderFC(); _playerFcUpdateUI();
         _bacaSyncToCard(c.sId, c.ayatN);
       });
       audio.addEventListener('ended',()=>{
+        if(_fcAudio!==audio) return;
         _fcAudio=null; renderFC(); _playerFcUpdateUI();
         if(_playerAutoOn) setTimeout(_fcAutoNext, 400);
       });
-      audio.addEventListener('error',()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+      audio.addEventListener('error',()=>{ if(_fcAudio===audio){ _fcAudio=null; renderFC(); _playerFcUpdateUI(); } });
       return;
     }
 
@@ -2359,13 +2366,14 @@ function _fcPlayCurrent(){
 
     audio.addEventListener('loadedmetadata',()=>{
       audio.currentTime = timeline[0].startMs / 1000;
-      audio.play().catch(()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+      audio.play().catch(()=>{ if(_fcAudio===audio){ _fcAudio=null; renderFC(); _playerFcUpdateUI(); } });
       // Set kartu pertama
       advanceToCard(0);
       renderFC(); _playerFcUpdateUI();
     });
 
     audio.addEventListener('timeupdate',()=>{
+      if(_fcAudio!==audio) return; // event basi dari audio yang sudah digantikan
       const nowMs = audio.currentTime * 1000;
       // Cek apakah sudah waktunya pindah ke kartu berikutnya
       while(timelineIdx + 1 < timeline.length){
@@ -2386,6 +2394,7 @@ function _fcPlayCurrent(){
     });
 
     audio.addEventListener('ended',()=>{
+      if(_fcAudio!==audio) return;
       _fcAudio=null;
       // Pastikan kartu terakhir dalam slice sudah aktif
       if(timeline.length > 0){
@@ -2395,7 +2404,7 @@ function _fcPlayCurrent(){
       if(_playerAutoOn) setTimeout(_fcAutoNext, 400);
     });
 
-    audio.addEventListener('error',()=>{ _fcAudio=null; renderFC(); _playerFcUpdateUI(); });
+    audio.addEventListener('error',()=>{ if(_fcAudio===audio){ _fcAudio=null; renderFC(); _playerFcUpdateUI(); } });
   });
 }
 // ───────────────────────────────────────────────────────────────────────────
@@ -2731,10 +2740,11 @@ function _playerPlayCurrent(){
 
     audio.addEventListener('loadedmetadata', ()=>{
       audio.currentTime = 0;
-      audio.play().catch(()=>{ _playerPlaying=false; _playerUpdateUI(); });
+      audio.play().catch(()=>{ if(_recAudio===audio){ _playerPlaying=false; _playerUpdateUI(); } });
     });
 
     audio.addEventListener('timeupdate', ()=>{
+      if(_recAudio !== audio) return; // event basi dari audio yang sudah digantikan
       const nowMs = audio.currentTime * 1000;
       let newSeg = -1;
       for(let i=0;i<segments.length;i++){
@@ -2754,6 +2764,7 @@ function _playerPlayCurrent(){
     });
 
     audio.addEventListener('ended', ()=>{
+      if(_recAudio !== audio) return;
       _clearRecActive();
       _recAudio = null;
       _playerPlaying = false;
@@ -2762,6 +2773,7 @@ function _playerPlayCurrent(){
     });
 
     audio.addEventListener('error', ()=>{
+      if(_recAudio !== audio) return;
       _playerPlaying = false;
       _playerUpdateUI();
       _stopRecAudio();
