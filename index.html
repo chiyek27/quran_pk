@@ -1843,6 +1843,16 @@ function switchTab(t){
       document.getElementById('content-'+x).style.display=x===t?'block':'none';
       document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
     });
+    // Hentikan audio milik mode yang ditinggalkan agar hanya satu audio yang aktif
+    // pada satu waktu. Tanpa ini, tombol player-controls di player-bar akan mengontrol
+    // audio mode yang salah setelah pindah tab (mis. audio Baca tetap berbunyi di
+    // belakang layar padahal tombol Play/Pause sudah dialihkan untuk mengontrol
+    // audio Flashcard, atau sebaliknya), sehingga terasa seperti dua kontrol terpisah.
+    if(t==='flashcard'){
+      if(typeof _stopRecAudio==='function') _stopRecAudio();
+    } else {
+      if(typeof _fcStopAudio==='function') _fcStopAudio();
+    }
     // Jika pindah ke tab flashcard sementara audio Baca masih berjalan, samakan tampilan kartu
     if(t==='flashcard' && _recActiveWord){
       _fcSyncToWord(_recActiveWord.sId, _recActiveWord.ayatN, _recActiveWord.wIdx);
