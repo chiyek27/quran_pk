@@ -1295,7 +1295,7 @@ function toArabicNum(n){
 // (fathatan/dammatan/kasratan tanpa huruf penopang) maupun tanda waqaf,
 // jadi keduanya dinormalisasi/dihilangkan saat font ini aktif.
 let currentArFont='';
-function isRaqqFont(){ return currentArFont==='Raqq'; }
+function isRaqqFont(){ return currentArFont==='Raqq' || currentArFont==='RaqqSura'; }
 function arDisplay(ar){
   if(!ar || !isRaqqFont()) return ar;
   return ar
@@ -1303,6 +1303,9 @@ function arDisplay(ar){
     .replace(/\u065E/g,'\u064C')                 // varian dammatan (mis. غِشَٰوَةٞ) → dammatan ٌ
     .replace(/\u0656/g,'\u064D')                 // varian kasratan (mis. ظُلُمَٰتٖ) → kasratan ٍ
     .replace(/\u0670/g,'')                       // hilangkan alif kecil/dagger alif (mis. ٱلرَّحۡمَٰنِ)
+    .replace(/[\u06E5\u06E6]/g,'')               // hilangkan wau/ya kecil (mis. بِهِۦ, عَهۡدَهُۥ)
+    .replace(/\u0653/g,'')                       // hilangkan tanda madda kecil (mis. يَسۡتَحۡيِۦٓ)
+    .replace(/\u06E2/g,'')                       // hilangkan tanda iqlab/mim kecil (mis. مِنۢ)
     .replace(/[\u06D6-\u06DC\u06DE\u06E9]/g,'');  // hilangkan tanda waqaf/rubu'/sajdah
 }
 function ayatNumDisplay(n){
