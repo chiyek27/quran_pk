@@ -1302,11 +1302,12 @@ function arDisplay(ar){
     .replace(/\u0657/g,'\u064B')                 // varian fathatan (mis. هُدٗى) → fathatan ً
     .replace(/\u065E/g,'\u064C')                 // varian dammatan (mis. غِشَٰوَةٞ) → dammatan ٌ
     .replace(/\u0656/g,'\u064D')                 // varian kasratan (mis. ظُلُمَٰتٖ) → kasratan ٍ
+    .replace(/\u0670/g,'')                       // hilangkan alif kecil/dagger alif (mis. ٱلرَّحۡمَٰنِ)
     .replace(/[\u06D6-\u06DC\u06DE\u06E9]/g,'');  // hilangkan tanda waqaf/rubu'/sajdah
 }
 function ayatNumDisplay(n){
   const num=toArabicNum(n);
-  return isRaqqFont() ? (num+'\u06DD') : num;   // ۝ untuk penomoran ayat
+  return isRaqqFont() ? ('\u06DD'+num) : num;   // ۝ di depan nomor ayat
 }
 function refreshArabicDisplay(){
   if(activeTab==='baca'){ renderBaca(); }
