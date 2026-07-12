@@ -164,7 +164,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 }
 .ayat-num{
   display:inline;
-  font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:1em;
+  font-family:"Conv_original-hafs"!important;font-size:1em;
   color:var(--c-gold);margin-right:4px;
 }
 .ayat-tr{
@@ -767,7 +767,6 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         <select id="sel-font-ar" onchange="onFontArChange()" style="max-width:200px">
           <option value="">Standar (Conv_original-hafs)</option>
           <option value="Raqq">Raqq (Kufic)</option>
-          <option value="RaqqSura">RaqqSura</option>
         </select>
       </div>
       <div class="settings-section-label">Audio</div>
@@ -850,18 +849,44 @@ function toggleFn(){
   document.getElementById('tgl-fn').className='tgl'+(showFn?' on':'');
   renderBaca();
 }
+// Font Arab yang sedang aktif ('' = Standar, 'Raqq' = Kufic)
+let currentArFont = '';
+
+// Menghapus harakat (tashkil) & tanda-tanda baca/waqaf Al-Qur'an dari teks Arab.
+// Rentang unicode yang dihapus: tanda honorifik, harakat (fathah/dammah/kasrah/
+// sukun/tanwin/syaddah/dll), alif kecil, serta tanda waqaf & anotasi qira'at.
+function stripHarakat(t){
+  if(!t) return t;
+  return t.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u08D3-\u08FF]/g,'');
+}
+
+// Dipakai membungkus semua teks ayat/kata Arab sebelum ditampilkan.
+// Saat font Raqq (Kufic) aktif, harakat & tanda baca ayat dihilangkan otomatis.
+function arDisp(t){
+  return currentArFont==='Raqq' ? stripHarakat(t) : t;
+}
+
 function onFontArChange(){
   const val = document.getElementById('sel-font-ar').value;
+  currentArFont = val;
   if(val){
     document.documentElement.style.setProperty('--font-kata-ar', "'" + val + "'");
   } else {
     document.documentElement.style.removeProperty('--font-kata-ar');
   }
   try{ localStorage.setItem('font_kata_ar', val); }catch(ex){}
+  // Render ulang tampilan aktif supaya harakat langsung disesuaikan
+  if(typeof renderBaca === 'function') renderBaca();
+  if(typeof activeTab !== 'undefined' && activeTab === 'flashcard'){
+    if(typeof renderFC === 'function') renderFC();
+    if(typeof fcFsRender === 'function') fcFsRender();
+    if(typeof _playerFcUpdateUI === 'function') _playerFcUpdateUI();
+  }
 }
 function initFontAr(){
   let val = '';
   try{ val = localStorage.getItem('font_kata_ar') || ''; }catch(ex){}
+  currentArFont = val;
   const sel = document.getElementById('sel-font-ar');
   if(sel) sel.value = val;
   if(val){
@@ -1435,7 +1460,7 @@ function renderBaca(){
     <div class="surah-name-ar">${s.name}</div>
     <div class="surah-name-id">${sId}. ${s.name} — ${s.id} · ${s.jml} Ayat</div>
   </div>`;
-  if(fr===1&&sId!==1&&sId!==9) html+=`<div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
+  if(fr===1&&sId!==1&&sId!==9) html+=`<div class="bismillah">${arDisp('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ')}</div>`;
   const adaKonten=showAyat||showKata||showTrAyat||showTrKata;
   if(!adaKonten){
     html+=`<p style="color:var(--c-muted);font-size:13px;text-align:center;padding:20px 0">Pilih tampilan di pengaturan.</p>`;
@@ -1443,7 +1468,7 @@ function renderBaca(){
     ayats.forEach(a=>{
       html+=`<div class="ayat-block">`;
       if(showAyat){
-        html+=`<div class="ayat-ar">${a.ar}<span class="ayat-num">${toArabicNum(a.n)}</span></div>`;
+        html+=`<div class="ayat-ar">${arDisp(a.ar)}<span class="ayat-num">${toArabicNum(a.n)}</span></div>`;
       }
       if(showTrAyat&&!showAyat&&!showKata){
         // terjemahan saja tanpa tampilan arab
@@ -1462,9 +1487,9 @@ function renderBaca(){
         if(kataAyat && kataAyat.length){
           html+=`<div class="kata-grid">`;
           kataAyat.forEach((k,wi)=>{
-            html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" data-sidx="${sId}" data-ayat="${a.n}" data-widx="${wi+1}" onclick="playKataAudio(this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
+            html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" data-sidx="${sId}" data-ayat="${a.n}" data-widx="${wi+1}" onclick="playKataAudio(this)"><div class="kata-ar">${arDisp(k.ar)}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
-          html+=`<div class="kata-item kata-item-num" data-sidx="${sId}" data-ayat="${a.n}" onclick="playAyatAudio(this)" style="cursor:pointer"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
+          html+=`<div class="kata-item kata-item-num" data-sidx="${sId}" data-ayat="${a.n}" onclick="playAyatAudio(this)" style="cursor:pointer"><div class="kata-ar" style="color:var(--c-gold);font-family:'Conv_original-hafs'">${toArabicNum(a.n)}</div></div>`;
           html+=`</div>`;
         }
       }
@@ -1752,31 +1777,32 @@ function renderFC(){
     <div class="flashcard${isPlaying?' fc-audio-playing':''}" id="fc-card" ontouchstart="fcTouch(event)" onclick="fcClick(event)">
       <button class="fc-fullscreen-btn" ontouchstart="event.stopPropagation()" onclick="fcOpenFullscreen(event)" title="Fullscreen">⛶</button>`;
 
+  const cArDisp = arDisp(c.ar);
   if(!flipped){
-    const main=fc.showTr?c.tr:c.ar;
+    const main=fc.showTr?c.tr:cArDisp;
     const isAr=!fc.showTr;
-    const mainSize=isAr?fcFitSize(c.ar,22,56,18):fcFitSize(c.tr,14,28,30);
+    const mainSize=isAr?fcFitSize(cArDisp,22,56,18):fcFitSize(c.tr,14,28,30);
     html+=`<div class="fc-front">
       <div class="${isAr?'fc-ar':'fc-tr-big'}" style="font-size:${mainSize}px;${isAr?'':'color:var(--c-text)'}">${main}</div>
       <div class="fc-hint">${isPlaying?'🔊 Sedang diputar…':'Tap untuk lihat jawaban'}</div>
     </div>`;
   } else {
     if(!fc.showTr){
-      const arSize=fcFitSize(c.ar,14,24,25);
+      const arSize=fcFitSize(cArDisp,14,24,25);
       const trSize=fcFitSize(c.tr,14,28,30);
       html+=`<div class="fc-back">
         <div class="fc-ar-sm" style="font-size:${arSize}px;direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted);font-weight:400">
-          ${c.ar}</div>
+          ${cArDisp}</div>
         <div class="fc-tr-big" style="font-size:${trSize}px;color:var(--c-green);font-weight:600">
           ${c.tr}</div>
         <div class="fc-surah">${c.ref}</div>
       </div>`;
     } else {
-      const arSize=fcFitSize(c.ar,22,56,18);
+      const arSize=fcFitSize(cArDisp,22,56,18);
       const trSize=fcFitSize(c.tr,10,13,50);
       html+=`<div class="fc-back">
         <div class="fc-tr-big" style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize}px;direction:rtl;color:var(--c-green);font-weight:400">
-          ${c.ar}</div>
+          ${cArDisp}</div>
         <div class="fc-ar-sm" style="font-size:${trSize}px;direction:ltr;font-family:var(--font-sans);color:var(--c-muted);font-weight:400">
           ${c.tr}</div>
         <div class="fc-surah">${c.ref}</div>
@@ -2438,7 +2464,8 @@ function _playerFcUpdateUI(){
   const isPlaying = !!_fcAudio && !_fcAudio.paused;
 
   // Tampilkan kata arab (potong jika panjang) dan referensi ayat
-  document.getElementById('player-fc-label').textContent = c ? (c.ar.length>22 ? c.ar.slice(0,20)+'…' : c.ar) : '';
+  const cArDispLabel = c ? arDisp(c.ar) : '';
+  document.getElementById('player-fc-label').textContent = c ? (cArDispLabel.length>22 ? cArDispLabel.slice(0,20)+'…' : cArDispLabel) : '';
   document.getElementById('player-fc-ref').textContent   = c ? c.ref : '';
 
   const playBtn = document.getElementById('player-fc-play');
@@ -2546,23 +2573,24 @@ function fcFsRender(){
   if(nextBtn) nextBtn.disabled = isPlaying;
 
   let inner = '';
+  const cArDispFs = arDisp(c.ar);
   if(!flipped){
-    const main = fc.showTr ? c.tr : c.ar;
+    const main = fc.showTr ? c.tr : cArDispFs;
     const isAr = !fc.showTr;
-    const mainSize=isAr?fcFitClamp(c.ar,28,14,160,18):fcFitClamp(c.tr,18,8,90,30);
+    const mainSize=isAr?fcFitClamp(cArDispFs,28,14,160,18):fcFitClamp(c.tr,18,8,90,30);
     inner = `<div class="${isAr?'fc-ar':'fc-tr-big'}" style="font-size:${mainSize};${isAr?'':'color:var(--c-text)'}">${main}</div>
              <div class="fc-hint">Tap untuk lihat jawaban</div>`;
   } else {
     if(!fc.showTr){
-      const arSize=fcFitClamp(c.ar,16,3.5,36,25);
+      const arSize=fcFitClamp(cArDispFs,16,3.5,36,25);
       const trSize=fcFitClamp(c.tr,18,8,90,30);
-      inner = `<div class="fc-ar-sm" style="font-size:${arSize};direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted)">${c.ar}</div>
+      inner = `<div class="fc-ar-sm" style="font-size:${arSize};direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted)">${cArDispFs}</div>
                <div class="fc-tr-big" style="font-size:${trSize};color:var(--c-green);font-weight:600;margin-top:12px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     } else {
-      const arSize=fcFitClamp(c.ar,28,14,160,18);
+      const arSize=fcFitClamp(cArDispFs,28,14,160,18);
       const trSize=fcFitClamp(c.tr,12,2,18,60);
-      inner = `<div style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize};direction:rtl;color:var(--c-green)">${c.ar}</div>
+      inner = `<div style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize};direction:rtl;color:var(--c-green)">${cArDispFs}</div>
                <div style="font-size:${trSize};direction:ltr;color:var(--c-muted);margin-top:10px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     }
