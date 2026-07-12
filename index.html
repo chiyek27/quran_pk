@@ -39,7 +39,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 
 /* ── Tabs ── */
 .tabs{
-  display:grid;grid-template-columns:repeat(3,1fr);
+  display:grid;grid-template-columns:repeat(4,1fr);
   border-bottom:1px solid var(--c-border);
   background:var(--c-bg);
   position:sticky;top:0;z-index:10;
@@ -136,10 +136,10 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   background:linear-gradient(145deg,#0F6E56,#1a9970);
   border-radius:var(--radius);margin-bottom:14px;color:#fff;
 }
-.surah-name-ar{font-size:30px;font-family:"Conv_original-hafs";margin-bottom:6px;line-height:1.4}
+.surah-name-ar{font-size:30px;font-family:var(--font-kata-ar,"Conv_original-hafs");margin-bottom:6px;line-height:1.4}
 .surah-name-id{font-size:13px;opacity:.85;letter-spacing:.02em}
 .bismillah{
-  text-align:center;font-size:24px;font-family:"Conv_original-hafs";
+  text-align:center;font-size:24px;font-family:var(--font-kata-ar,"Conv_original-hafs");
   color:var(--c-gold);padding:14px 0 10px;direction:rtl;line-height:1.7;
 }
 
@@ -159,12 +159,12 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 
 .ayat-ar{
   direction:rtl;
-  font-family:"Conv_original-hafs";
+  font-family:var(--font-kata-ar,"Conv_original-hafs");
   font-size:28px;
 }
 .ayat-num{
   display:inline;
-  font-family:'Conv_original-hafs';font-size:1em;
+  font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:1em;
   color:var(--c-gold);margin-right:4px;
 }
 .ayat-tr{
@@ -234,10 +234,10 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 }
 .flashcard:active{transform:scale(.98)}
 .fc-front,.fc-back{text-align:center;width:100%}
-.fc-ar{font-family:"Conv_original-hafs";font-size:56px;color:var(--c-text);direction:rtl;line-height:1.5}
+.fc-ar{font-family:var(--font-kata-ar,"Conv_original-hafs");font-size:56px;color:var(--c-text);direction:rtl;line-height:1.5}
 .fc-hint{font-size:12px;color:var(--c-muted);margin-top:14px;letter-spacing:.02em}
 .fc-tr-big{font-size:28px;font-weight:600;color:var(--c-green);margin-bottom:8px;line-height:1.4}
-.fc-ar-sm{font-family:"Conv_original-hafs";font-size:26px;color:var(--c-muted);direction:rtl}
+.fc-ar-sm{font-family:var(--font-kata-ar,"Conv_original-hafs");font-size:26px;color:var(--c-muted);direction:rtl}
 .fc-surah{font-size:12px;color:var(--c-muted);margin-top:10px}
 .swipe-hint{font-size:11px;color:var(--c-muted);text-align:center;margin-top:10px;opacity:.7}
 
@@ -434,7 +434,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
   line-height:1.75;white-space:pre-line;
 }
 .tafsir-text.ar{
-  direction:rtl;font-family:"Conv_original-hafs";font-size:22px;
+  direction:rtl;font-family:var(--font-kata-ar,"Conv_original-hafs");font-size:22px;
   color:var(--c-text);line-height:2;
 }
 .tafsir-text.id{color:var(--c-muted)}
@@ -598,6 +598,7 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
     <div class="tab active" id="tab-baca" onclick="switchTab('baca')">Baca <span class="tab-chevron" id="chv-baca">▲</span></div>
     <div class="tab" id="tab-latihan" onclick="switchTab('latihan')">Latihan <span class="tab-chevron" id="chv-latihan">▲</span></div>
     <div class="tab" id="tab-flashcard" onclick="switchTab('flashcard')">Flashcard <span class="tab-chevron" id="chv-flashcard">▲</span></div>
+    <div class="tab" id="tab-pengaturan" onclick="switchTab('pengaturan')">Pengaturan</div>
   </div>
   <div class="content" id="content-baca">
     <div id="baca-settings-body" class="settings-body">
@@ -629,42 +630,10 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
         </div>
       </div>
       <div class="settings-row">
-        <label>Font Arab (Per kata)</label>
-        <select id="sel-font-ar" onchange="onFontArChange()" style="max-width:200px">
-          <option value="">Standar (Conv_original-hafs)</option>
-          <option value="Raqq">Raqq (Kufic)</option>
-          <option value="RaqqSura">RaqqSura</option>
-        </select>
-      </div>
-      <div class="settings-row">
         <label>Catatan kaki</label>
         <div class="toggle-group">
           <div class="tgl on" id="tgl-fn" onclick="toggleFn()">Tampilkan</div>
         </div>
-      </div>
-
-      <div class="settings-section-label">Audio</div>
-
-      <div class="settings-row">
-        <label>Qari</label>
-        <select id="sel-qari" onchange="onQariChange()" style="max-width:200px">
-          <option value="">— Tidak tampilkan —</option>
-          <option value="ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs-949.json" selected>Abdul Basit (Mujawwad)</option>
-          <option value="ayah-recitation-abdul-basit-abdul-samad-murattal-hafs-950.json">Abdul Basit (Murattal)</option>
-          <option value="ayah-recitation-mishari-rashid-al-afasy-murattal-hafs-953.json">Mishari Rashid Al-Afasy</option>
-          <option value="ayah-recitation-mahmoud-khalil-al-husary-murattal-hafs-957.json">Mahmoud Khalil Al-Husary</option>
-          <option value="ayah-recitation-mahmoud-khalil-al-husary-mujawwad-hafs-956.json">Al-Husary (Mujawwad)</option>
-          <option value="ayah-recitation-mahmoud-khalil-al-husary-murattal-hafs-955.json">Al-Husary (Muallim)</option>
-          <option value="ayah-recitation-abdul-rahman-al-sudais-murattal-hafs-951.json">Abdul Rahman Al-Sudais</option>
-          <option value="ayah-recitation-abdur-rahman-as-sudais-recitation.json">Abdur Rahman As-Sudais (Alt)</option>
-          <option value="ayah-recitation-abu-bakr-al-shatri-murattal-hafs-952.json">Abu Bakr Al-Shatri</option>
-          <option value="ayah-recitation-hani-ar-rifai-recitation-murattal-hafs-68.json">Hani Ar-Rifai</option>
-          <option value="ayah-recitation-khalifa-al-tunaiji-murattal-hafs-958.json">Khalifa Al-Tunaiji</option>
-          <option value="ayah-recitation-maher-al-mu-aiqly-murattal-hafs-948.json">Maher Al-Muaiqly</option>
-          <option value="ayah-recitation-saad-al-ghamdi-murattal-hafs-954.json">Saad Al-Ghamdi</option>
-          <option value="ayah-recitation-saud-al-shuraim-murattal-hafs-960.json">Saud Al-Shuraim</option>
-          <option value="ayah-recitation-yasser-al-dosari-murattal-hafs-961.json">Yasser Al-Dosari</option>
-        </select>
       </div>
 
       <div class="settings-section-label">Tafsir</div>
@@ -784,10 +753,27 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
           <div class="tgl" id="tgl-fc-acak" onclick="toggleFCOrder('acak')">🔀 Acak</div>
         </div>
       </div>
+      <button class="apply-btn" onclick="startFlashcard();closeSettings('fc')">Mulai Flashcard</button>
+    </div>
+    </div><!-- /fc-settings-body -->
+    <div id="fc-output"></div>
+  </div>
+  <div class="content" id="content-pengaturan" style="display:none">
+    <div id="peng-settings-body" class="settings-body open">
+    <div class="settings-card">
+      <div class="settings-section-label">Font</div>
+      <div class="settings-row">
+        <label>Font Arab</label>
+        <select id="sel-font-ar" onchange="onFontArChange()" style="max-width:200px">
+          <option value="">Standar (Conv_original-hafs)</option>
+          <option value="Raqq">Raqq (Kufic)</option>
+          <option value="RaqqSura">RaqqSura</option>
+        </select>
+      </div>
       <div class="settings-section-label">Audio</div>
       <div class="settings-row">
         <label>Qari</label>
-        <select id="fc-qari" onchange="onFcQariChange()" style="max-width:200px">
+        <select id="sel-qari" onchange="onQariChange()" style="max-width:200px">
           <option value="">— Tidak tampilkan —</option>
           <option value="ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs-949.json" selected>Abdul Basit (Mujawwad)</option>
           <option value="ayah-recitation-abdul-basit-abdul-samad-murattal-hafs-950.json">Abdul Basit (Murattal)</option>
@@ -806,10 +792,9 @@ body{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',san
           <option value="ayah-recitation-yasser-al-dosari-murattal-hafs-961.json">Yasser Al-Dosari</option>
         </select>
       </div>
-      <button class="apply-btn" onclick="startFlashcard();closeSettings('fc')">Mulai Flashcard</button>
+      <div style="font-size:12px;color:var(--c-muted);margin-top:8px">Pengaturan Font Arab dan Qari di sini berlaku untuk tab Baca, Latihan, dan Flashcard.</div>
     </div>
-    </div><!-- /fc-settings-body -->
-    <div id="fc-output"></div>
+    </div><!-- /peng-settings-body -->
   </div>
 <!-- ── Flashcard Fullscreen Overlay ── -->
 <div id="fc-fullscreen-overlay">
@@ -1447,7 +1432,7 @@ function renderBaca(){
   const to=+document.getElementById('ayat-to').value;
   const ayats=s.ayat.filter(a=>a.n>=fr&&a.n<=to);
   let html=`<div class="surah-header">
-    <div class="surah-name-ar" style="font-family:"Conv_original-hafs"">${s.name}</div>
+    <div class="surah-name-ar">${s.name}</div>
     <div class="surah-name-id">${sId}. ${s.name} — ${s.id} · ${s.jml} Ayat</div>
   </div>`;
   if(fr===1&&sId!==1&&sId!==9) html+=`<div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
@@ -1591,13 +1576,13 @@ function renderLatihan(){
     </div>
     <div class="lat-question-card">
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:12px">Ayat ${k.ayat} · ${k.surah}</div>
-      <div style="${mode==='ar2tr'?"font-family:'Conv_original-hafs';font-size:34px;direction:rtl;":"font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif);font-size:18px;font-weight:500;direction:ltr;"}color:var(--c-text);line-height:1.6">${Q}</div>
+      <div style="${mode==='ar2tr'?"font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:34px;direction:rtl;":"font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif);font-size:18px;font-weight:500;direction:ltr;"}color:var(--c-text);line-height:1.6">${Q}</div>
     </div>
     <div class="lat-choices" id="choices">`;
   choices.forEach((c,i)=>{
     const isAr=mode==='tr2ar';
     const choiceStyle=isAr
-      ? "font-family:'Conv_original-hafs';font-size:32px;direction:rtl;"
+      ? "font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:32px;direction:rtl;"
       : "font-size:16px;direction:ltr;";
     html+=`<button onclick="checkAnswer(${i},'${encodeURIComponent(c)}','${encodeURIComponent(A)}')" 
       class="lat-choice-btn" style="${choiceStyle}" id="choice-${i}">
@@ -1751,7 +1736,7 @@ function renderFC(){
   const {cards,idx,flipped}=fc;
   if(cards.length===0){document.getElementById('fc-output').innerHTML='<p style="color:var(--c-muted);font-size:13px;text-align:center">Mulai flashcard dari pengaturan di atas.</p>';return;}
   const c=cards[idx];
-  const fcQariFile = (document.getElementById('fc-qari')||{}).value||'';
+  const fcQariFile = (document.getElementById('sel-qari')||{}).value||'';
   const isPlaying = !!_fcAudio && !_fcAudio.paused;
 
   let html=`<div class="fc-wrap">
@@ -1780,7 +1765,7 @@ function renderFC(){
       const arSize=fcFitSize(c.ar,14,24,25);
       const trSize=fcFitSize(c.tr,14,28,30);
       html+=`<div class="fc-back">
-        <div class="fc-ar-sm" style="font-size:${arSize}px;direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted);font-weight:400">
+        <div class="fc-ar-sm" style="font-size:${arSize}px;direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted);font-weight:400">
           ${c.ar}</div>
         <div class="fc-tr-big" style="font-size:${trSize}px;color:var(--c-green);font-weight:600">
           ${c.tr}</div>
@@ -1790,7 +1775,7 @@ function renderFC(){
       const arSize=fcFitSize(c.ar,22,56,18);
       const trSize=fcFitSize(c.tr,10,13,50);
       html+=`<div class="fc-back">
-        <div class="fc-tr-big" style="font-family:'Conv_original-hafs';font-size:${arSize}px;direction:rtl;color:var(--c-green);font-weight:400">
+        <div class="fc-tr-big" style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize}px;direction:rtl;color:var(--c-green);font-weight:400">
           ${c.ar}</div>
         <div class="fc-ar-sm" style="font-size:${trSize}px;direction:ltr;font-family:var(--font-sans);color:var(--c-muted);font-weight:400">
           ${c.tr}</div>
@@ -1865,7 +1850,7 @@ function switchTab(t){
       return;
     }
     activeTab=t;
-    ['baca','latihan','flashcard'].forEach(x=>{
+    ['baca','latihan','flashcard','pengaturan'].forEach(x=>{
       document.getElementById('content-'+x).style.display=x===t?'block':'none';
       document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
     });
@@ -1937,7 +1922,7 @@ let _playerAyat  = 0;    // ayat number aktif
 let _playerWordIdx = 1;  // index kata aktif (1-based) untuk tampilan player-bar mode Baca
 let _playerAutoOn  = false; // status auto-play, dipakai bersama mode Baca & Flashcard
 let _playerPlaying = false;
-function getPrefix(tab){return tab==='latihan'?'lat':tab==='flashcard'?'fc':'baca';}
+function getPrefix(tab){return tab==='latihan'?'lat':tab==='flashcard'?'fc':tab==='pengaturan'?'peng':'baca';}
 function toggleActiveSettings(){
   const prefix=getPrefix(activeTab);
   const body=document.getElementById(prefix+'-settings-body');
@@ -2026,13 +2011,12 @@ function onQariChange() {
   // Preload file baru di background
   const file = _currentQariFile();
   if (file) _loadRecitationData(file, () => {});
-  // Sinkron ke fc-qari
-  const fcSel = document.getElementById('fc-qari');
-  if(fcSel && fcSel.value !== file){ fcSel.value = file; }
   // Sinkron audio: hentikan audio flashcard yang sedang jalan & refresh UI-nya
   _fcStopAudio();
   if (typeof renderFC === 'function') renderFC();
   if (typeof _playerFcUpdateUI === 'function') _playerFcUpdateUI();
+  // Refresh tampilan Baca juga karena qari yang sama kini dipakai bersama
+  if (typeof renderBaca === 'function') renderBaca();
 }
 
 // Audio instance aktif
@@ -2270,7 +2254,7 @@ function _fcStopAudio(){
 
 function onFcQariChange(){
   _fcStopAudio();
-  const file=(document.getElementById('fc-qari')||{}).value||'';
+  const file=(document.getElementById('sel-qari')||{}).value||'';
   if(file) _loadRecitationData(file,()=>{});
   // Sinkron ke sel-qari (baca)
   const bacaSel = document.getElementById('sel-qari');
@@ -2294,7 +2278,7 @@ function fcToggleAudio(){
 }
 
 function _fcPlayCurrent(){
-  const file=(document.getElementById('fc-qari')||{}).value||'';
+  const file=(document.getElementById('sel-qari')||{}).value||'';
   if(!file || fc.cards.length===0){ renderFC(); _playerFcUpdateUI(); return; }
 
   // Cari kartu pertama yang memiliki ayat valid sebagai anchor audio
@@ -2442,7 +2426,7 @@ function _playerFcUpdateUI(){
 
   if(activeTab !== 'flashcard') return;
 
-  const fcFile = (document.getElementById('fc-qari')||{}).value||'';
+  const fcFile = (document.getElementById('sel-qari')||{}).value||'';
   if(!fcFile || fc.cards.length===0){
     bar.style.display='none';
     return;
@@ -2572,13 +2556,13 @@ function fcFsRender(){
     if(!fc.showTr){
       const arSize=fcFitClamp(c.ar,16,3.5,36,25);
       const trSize=fcFitClamp(c.tr,18,8,90,30);
-      inner = `<div class="fc-ar-sm" style="font-size:${arSize};direction:rtl;font-family:'Conv_original-hafs';color:var(--c-muted)">${c.ar}</div>
+      inner = `<div class="fc-ar-sm" style="font-size:${arSize};direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted)">${c.ar}</div>
                <div class="fc-tr-big" style="font-size:${trSize};color:var(--c-green);font-weight:600;margin-top:12px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     } else {
       const arSize=fcFitClamp(c.ar,28,14,160,18);
       const trSize=fcFitClamp(c.tr,12,2,18,60);
-      inner = `<div style="font-family:'Conv_original-hafs';font-size:${arSize};direction:rtl;color:var(--c-green)">${c.ar}</div>
+      inner = `<div style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize};direction:rtl;color:var(--c-green)">${c.ar}</div>
                <div style="font-size:${trSize};direction:ltr;color:var(--c-muted);margin-top:10px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     }
