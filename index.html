@@ -858,6 +858,8 @@ function onFontArChange(){
     document.documentElement.style.removeProperty('--font-kata-ar');
   }
   try{ localStorage.setItem('font_kata_ar', val); }catch(ex){}
+  currentArFont = val;
+  refreshArabicDisplay();
 }
 function initFontAr(){
   let val = '';
@@ -867,6 +869,7 @@ function initFontAr(){
   if(val){
     document.documentElement.style.setProperty('--font-kata-ar', "'" + val + "'");
   }
+  currentArFont = val;
 }
 function toggleFnItem(id){
   const el=document.getElementById('fn-text-'+id);
@@ -1287,6 +1290,30 @@ function toArabicNum(n){
   return String(n).split('').map(d=>'٠١٢٣٤٥٦٧٨٩'[+d]).join('');
 }
 
+// ── Penyesuaian tampilan khusus font Raqq (Kufic) ─────────────────
+// Font Kufic umumnya tidak punya glyph untuk varian tanwin "terbuka"
+// (fathatan/dammatan/kasratan tanpa huruf penopang) maupun tanda waqaf,
+// jadi keduanya dinormalisasi/dihilangkan saat font ini aktif.
+let currentArFont='';
+function isRaqqFont(){ return currentArFont==='Raqq'; }
+function arDisplay(ar){
+  if(!ar || !isRaqqFont()) return ar;
+  return ar
+    .replace(/\u0657/g,'\u064B')                 // varian fathatan (mis. هُدٗى) → fathatan ً
+    .replace(/\u065E/g,'\u064C')                 // varian dammatan (mis. غِشَٰوَةٞ) → dammatan ٌ
+    .replace(/\u0656/g,'\u064D')                 // varian kasratan (mis. ظُلُمَٰتٖ) → kasratan ٍ
+    .replace(/[\u06D6-\u06DC\u06DE\u06E9]/g,'');  // hilangkan tanda waqaf/rubu'/sajdah
+}
+function ayatNumDisplay(n){
+  const num=toArabicNum(n);
+  return isRaqqFont() ? (num+'\u06DD') : num;   // ۝ untuk penomoran ayat
+}
+function refreshArabicDisplay(){
+  if(activeTab==='baca'){ renderBaca(); }
+  else if(activeTab==='latihan'){ if(latState && latState.kata && latState.kata.length) renderLatihan(); }
+  else if(activeTab==='flashcard'){ if(fc && fc.cards && fc.cards.length) renderFC(); }
+}
+
 // ── Tafsir ──────────────────────────────────────────────
 // Cache: {filename: data_object | 'loading' | 'error'}
 const tafsirCache = {};
@@ -1435,7 +1462,7 @@ function renderBaca(){
     <div class="surah-name-ar">${s.name}</div>
     <div class="surah-name-id">${sId}. ${s.name} — ${s.id} · ${s.jml} Ayat</div>
   </div>`;
-  if(fr===1&&sId!==1&&sId!==9) html+=`<div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
+  if(fr===1&&sId!==1&&sId!==9) html+=`<div class="bismillah">${arDisplay('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ')}</div>`;
   const adaKonten=showAyat||showKata||showTrAyat||showTrKata;
   if(!adaKonten){
     html+=`<p style="color:var(--c-muted);font-size:13px;text-align:center;padding:20px 0">Pilih tampilan di pengaturan.</p>`;
@@ -1443,7 +1470,7 @@ function renderBaca(){
     ayats.forEach(a=>{
       html+=`<div class="ayat-block">`;
       if(showAyat){
-        html+=`<div class="ayat-ar">${a.ar}<span class="ayat-num">${toArabicNum(a.n)}</span></div>`;
+        html+=`<div class="ayat-ar">${arDisplay(a.ar)}<span class="ayat-num">${ayatNumDisplay(a.n)}</span></div>`;
       }
       if(showTrAyat&&!showAyat&&!showKata){
         // terjemahan saja tanpa tampilan arab
@@ -1462,9 +1489,9 @@ function renderBaca(){
         if(kataAyat && kataAyat.length){
           html+=`<div class="kata-grid">`;
           kataAyat.forEach((k,wi)=>{
-            html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" data-sidx="${sId}" data-ayat="${a.n}" data-widx="${wi+1}" onclick="playKataAudio(this)"><div class="kata-ar">${k.ar}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
+            html+=`<div class="kata-item" data-ar="${k.ar.replace(/"/g,'&quot;')}" data-sidx="${sId}" data-ayat="${a.n}" data-widx="${wi+1}" onclick="playKataAudio(this)"><div class="kata-ar">${arDisplay(k.ar)}</div>${showTrKata&&k.tr?`<div class="kata-tr">${k.tr}</div>`:''}</div>`;
           });
-          html+=`<div class="kata-item kata-item-num" data-sidx="${sId}" data-ayat="${a.n}" onclick="playAyatAudio(this)" style="cursor:pointer"><div class="kata-ar" style="color:var(--c-gold)">${toArabicNum(a.n)}</div></div>`;
+          html+=`<div class="kata-item kata-item-num" data-sidx="${sId}" data-ayat="${a.n}" onclick="playAyatAudio(this)" style="cursor:pointer"><div class="kata-ar" style="color:var(--c-gold)">${ayatNumDisplay(a.n)}</div></div>`;
           html+=`</div>`;
         }
       }
@@ -1554,13 +1581,13 @@ function renderLatihan(){
   const k=kata[idx];
   const progress=Math.round((idx/total)*100);
   let Q,A;
-  if(mode==='ar2tr'){Q=k.ar;A=k.tr;}
-  else{Q=k.tr;A=k.ar;}
+  if(mode==='ar2tr'){Q=arDisplay(k.ar);A=k.tr;}
+  else{Q=k.tr;A=arDisplay(k.ar);}
 
   // generate choices
   const pool=latState.kata.filter((_,i)=>i!==idx);
   const shuffled=[...pool].sort(()=>Math.random()-.5).slice(0,Math.min(3,pool.length));
-  const choices=shuffled.map(c=>mode==='ar2tr'?c.tr:c.ar);
+  const choices=shuffled.map(c=>mode==='ar2tr'?c.tr:arDisplay(c.ar));
   choices.push(A);
   choices.sort(()=>Math.random()-.5);
 
@@ -1753,7 +1780,7 @@ function renderFC(){
       <button class="fc-fullscreen-btn" ontouchstart="event.stopPropagation()" onclick="fcOpenFullscreen(event)" title="Fullscreen">⛶</button>`;
 
   if(!flipped){
-    const main=fc.showTr?c.tr:c.ar;
+    const main=fc.showTr?c.tr:arDisplay(c.ar);
     const isAr=!fc.showTr;
     const mainSize=isAr?fcFitSize(c.ar,22,56,18):fcFitSize(c.tr,14,28,30);
     html+=`<div class="fc-front">
@@ -1766,7 +1793,7 @@ function renderFC(){
       const trSize=fcFitSize(c.tr,14,28,30);
       html+=`<div class="fc-back">
         <div class="fc-ar-sm" style="font-size:${arSize}px;direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted);font-weight:400">
-          ${c.ar}</div>
+          ${arDisplay(c.ar)}</div>
         <div class="fc-tr-big" style="font-size:${trSize}px;color:var(--c-green);font-weight:600">
           ${c.tr}</div>
         <div class="fc-surah">${c.ref}</div>
@@ -1776,7 +1803,7 @@ function renderFC(){
       const trSize=fcFitSize(c.tr,10,13,50);
       html+=`<div class="fc-back">
         <div class="fc-tr-big" style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize}px;direction:rtl;color:var(--c-green);font-weight:400">
-          ${c.ar}</div>
+          ${arDisplay(c.ar)}</div>
         <div class="fc-ar-sm" style="font-size:${trSize}px;direction:ltr;font-family:var(--font-sans);color:var(--c-muted);font-weight:400">
           ${c.tr}</div>
         <div class="fc-surah">${c.ref}</div>
@@ -2547,7 +2574,7 @@ function fcFsRender(){
 
   let inner = '';
   if(!flipped){
-    const main = fc.showTr ? c.tr : c.ar;
+    const main = fc.showTr ? c.tr : arDisplay(c.ar);
     const isAr = !fc.showTr;
     const mainSize=isAr?fcFitClamp(c.ar,28,14,160,18):fcFitClamp(c.tr,18,8,90,30);
     inner = `<div class="${isAr?'fc-ar':'fc-tr-big'}" style="font-size:${mainSize};${isAr?'':'color:var(--c-text)'}">${main}</div>
@@ -2556,13 +2583,13 @@ function fcFsRender(){
     if(!fc.showTr){
       const arSize=fcFitClamp(c.ar,16,3.5,36,25);
       const trSize=fcFitClamp(c.tr,18,8,90,30);
-      inner = `<div class="fc-ar-sm" style="font-size:${arSize};direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted)">${c.ar}</div>
+      inner = `<div class="fc-ar-sm" style="font-size:${arSize};direction:rtl;font-family:var(--font-kata-ar,'Conv_original-hafs');color:var(--c-muted)">${arDisplay(c.ar)}</div>
                <div class="fc-tr-big" style="font-size:${trSize};color:var(--c-green);font-weight:600;margin-top:12px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     } else {
       const arSize=fcFitClamp(c.ar,28,14,160,18);
       const trSize=fcFitClamp(c.tr,12,2,18,60);
-      inner = `<div style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize};direction:rtl;color:var(--c-green)">${c.ar}</div>
+      inner = `<div style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize};direction:rtl;color:var(--c-green)">${arDisplay(c.ar)}</div>
                <div style="font-size:${trSize};direction:ltr;color:var(--c-muted);margin-top:10px">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     }
