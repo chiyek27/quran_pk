@@ -2592,9 +2592,9 @@ function fcFsRender(){
                <div class="fc-surah">${c.ref}</div>`;
     } else {
       const arSize=fcFitClamp(c.ar,28,14,160,18);
-      const trSize=fcFitClamp(c.tr,12,2,18,60);
+      const trSize=fcFitClamp(c.tr,12,3,18,60);
       inner = `<div style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize};direction:rtl;color:var(--c-green)">${arDisplay(c.ar)}</div>
-               <div style="font-size:${trSize};direction:ltr;color:var(--c-muted);margin-top:10px">${c.tr}</div>
+               <div style="font-size:${trSize};direction:ltr;color:var(--c-muted);margin-top:10px;font-weight:500">${c.tr}</div>
                <div class="fc-surah">${c.ref}</div>`;
     }
   }
