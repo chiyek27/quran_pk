@@ -1804,11 +1804,11 @@ function renderFC(){
       </div>`;
     } else {
       const arSize=fcFitSize(c.ar,22,56,18);
-      const trSize=fcFitSize(c.tr,10,13,50);
+      const trSize=fcFitSize(c.tr,10,16,50);
       html+=`<div class="fc-back">
         <div class="fc-tr-big" style="font-family:var(--font-kata-ar,'Conv_original-hafs');font-size:${arSize}px;direction:rtl;color:var(--c-green);font-weight:400">
           ${arDisplay(c.ar)}</div>
-        <div class="fc-ar-sm" style="font-size:${trSize}px;direction:ltr;font-family:var(--font-sans);color:var(--c-muted);font-weight:400">
+        <div class="fc-ar-sm" style="font-size:${trSize}px;direction:ltr;font-family:var(--font-sans);color:var(--c-muted);font-weight:600">
           ${c.tr}</div>
         <div class="fc-surah">${c.ref}</div>
       </div>`;
