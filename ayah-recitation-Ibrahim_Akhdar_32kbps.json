@@ -43613,42 +43613,42 @@
     "surah_number": 114,
     "ayah_number": 1,
     "audio_url": "https://everyayah.com/data/Ibrahim_Akhdar_32kbps/114001.mp3",
-    "duration": null,
-    "segments": [[1, 0, 70], [2, 280, 880], [3, 930, 1030], [4, 5390, 5490]]
+    "duration": 6048,
+    "segments": [[1, 224, 425], [2, 606, 1189], [3, 1390, 2013], [4, 2194, 5047]]
   },
   "114:2": {
     "surah_number": 114,
     "ayah_number": 2,
     "audio_url": "https://everyayah.com/data/Ibrahim_Akhdar_32kbps/114002.mp3",
-    "duration": null,
-    "segments": [[1, 0, 560], [2, 4210, 4310]]
+    "duration": 5312,
+    "segments": [[1, 333, 855], [2, 936, 4331]]
   },
   "114:3": {
     "surah_number": 114,
     "ayah_number": 3,
     "audio_url": "https://everyayah.com/data/Ibrahim_Akhdar_32kbps/114003.mp3",
-    "duration": null,
-    "segments": [[1, 200, 560], [2, 3310, 3410]]
+    "duration": 5312,
+    "segments": [[1, 284, 886], [2, 966, 4355]]
   },
   "114:4": {
     "surah_number": 114,
     "ayah_number": 4,
     "audio_url": "https://everyayah.com/data/Ibrahim_Akhdar_32kbps/114004.mp3",
-    "duration": null,
-    "segments": [[1, 0, 70], [2, 1520, 2200], [3, 2320, 3440], [4, 3560, 7520]]
+    "duration": 8576,
+    "segments": [[1, 400, 701], [2, 1783, 2244], [3, 2404, 3567], [4, 3747, 7715]]
   },
   "114:5": {
     "surah_number": 114,
     "ayah_number": 5,
     "audio_url": "https://everyayah.com/data/Ibrahim_Akhdar_32kbps/114005.mp3",
-    "duration": null,
-    "segments": [[1, 0, 70], [2, 1000, 1920], [3, 2009, 2109], [4, 2360, 3000], [5, 5970, 6070]]
+    "duration": 8064,
+    "segments": [[1, 508, 1129], [2, 1149, 2370], [3, 2591, 2711], [4, 3011, 3732], [5, 3892, 7116]]
   },
   "114:6": {
     "surah_number": 114,
     "ayah_number": 6,
     "audio_url": "https://everyayah.com/data/Ibrahim_Akhdar_32kbps/114006.mp3",
-    "duration": null,
-    "segments": [[1, 0, 360], [2, 680, 1520], [3, 1760, 5400]]
+    "duration": 8288,
+    "segments": [[1, 388, 589], [2, 649, 2392], [3, 2773, 6539]]
   }
 }
